@@ -3,9 +3,26 @@
 > Source unique de verite, actualise automatiquement par Claude Code
 > A coller au debut de chaque nouvelle conversation Claude pour synchronisation instantanee
 
-**Derniere mise a jour** : 10 juin 2026
-**Derniere passe** : Session 10 juin — FaceMatch fix pipeline complet (streaming JSON + PM2 + veille iOS)
+**Derniere mise a jour** : 25 juillet 2026
+**Derniere passe** : Session 25 juillet — RAPPROCHEMENT BANCAIRE DANS LA FICHE FACTURE (demande fondateur). Le lien facture<->prelevement vivait UNIQUEMENT dans le releve (`t.facture.doc_id`, pose par `_comptaRematch`) : depuis une facture, impossible de savoir si elle avait ete payee, ni de corriger un rapprochement automatique faux. AJOUTE 4 routes user-scoped HORS du prefixe `/api/compta/` (piege archi requireSociete) : `GET /api/compta-rapprochement/:docId` (lit le lien A L'ENVERS), `GET /api/compta-rapprochement/:docId/candidats` (lignes de releve classees par proximite montant puis date, montant exact en tete, recherche libre `q`, ligne actuelle et lignes deja occupees signalees), `POST /api/compta-rapprochement/lier`, `POST /api/compta-rapprochement/delier`. Les 2 tables de la compta sont gerees (`documents_compta` user-scoped via `dc:<id>` et `cabinet_brain_documents` societe-scoped ; acces societe verifie par `_comptaScanAutoAutorise`). INTEGRITE (compta = zero erreur) : une facture ne justifie QU'UNE ligne — `_comptaRematch` collecte desormais TOUTES les factures deja accrochees (tous les mois) avant de matcher, un lien MANUEL n'est jamais ecrase, et une facture DELIEE a la main est memorisee (`rapprochement_refuse`) donc le rapprochement automatique ne la recolle plus, meme apres re-analyse du mois (etat repris dans la fusion `analyser-releve`). UI (index.html) : bloc « Rapprochement bancaire » dans la fiche facture — « Rapprochee au prelevement du 12/03/2026 — PRLV SEPA EDF 459.20 € », releve + auto/manuel, boutons « Lier a une autre ligne » (selecteur avec recherche) et « Ce n'est pas ce prelevement » ; plus de bouton PDF mort sur le releve (`has_pdf !== false`). TESTS : `scripts/_e2e_rapprochement.js` (souverain, n'imprime que des compteurs, snapshot+restauration des releves) 30/30 OK sur les vrais releves + 10/10 OK sur une ecriture auto-scannee ; node -c OK, JS index.html valide par new Function(), pm2 reload OK, e2e compta global inchange (704 tx, equilibre OK). Branche feat/multi-societes, NON pushe.
+
+**Passe precedente** : Session 24 juillet — COMPTA IMPORT REPARE + MULTI-FICHIERS. Le fondateur : « je veux importer mes factures mais ça marche pas, et je ne peux même pas en importer plusieurs d'un coup ». RACINE du « ça marche pas » trouvee dans les logs (24/07 12:11:26) : `/api/analyser-document` n'etait PAS exempte du timeout global 30 s (`app.use('/api/')`, server.js:189) ; or la RTX du cabinet a FROID met 25-30 s (chargement du modele vision en VRAM) → le timeout tirait pile pendant l'analyse, envoyait une reponse, puis la RTX finissait et l'endpoint refaisait `res.json` → `ERR_HTTP_HEADERS_SENT` (double envoi) → 500 cote fondateur ALORS QUE la RTX avait REUSSI (`[analyse] cabinet-10-10-0-3 (agent) -> BAHM KARIM DENTISTE`). Le routage RTX marche ; c'etait le timeout qui tuait l'import. FIX : route ajoutee a `longRoutes` (exemptee du 30 s) + timeout propre 120 s dans l'endpoint + gardes `if(!res.headersSent)` sur analyser-document ET valider-document. IMPORT MULTI-FICHIERS (index.html) : input `multiple` + drop multi + `pcComptaAnalyseFiles()` (traitement SEQUENTIEL — une seule RTX 8 Go) → chaque doc pre-trie par la RTX (fournisseur/type/montant/pro-perso) → liste revue par le praticien → « Importer les N selectionnes » (`pcComptaImporterBatch`). 1 seul fichier = comportement inchange. Les factures importees retombent dans `documents_compta`, rapprochees auto au releve au chargement de l'onglet Releve. Backups horodates, node -c OK, JS valide par new Function(), pm2 reload OK, 401 sans auth (pas de crash). NON pushe (branche feat/multi-societes sale). A TESTER par le fondateur : re-importer, verifier que ca passe meme RTX froide. **AJOUT (commits `e7d621a`, `e5a9a03`)** : (a) panneau d'analyse REMONTE sous la zone de depot + barre de progression (avant : sous les 6 cartes, il fallait scroller) ; (b) FOURNISSEUR = l'EMETTEUR jamais le CLIENT — facture Free Pro s'affichait « Bahmed » (lui) au lieu de « Free Pro » : les 2 prompts (LOCAL+Claude) corriges + garde-fou `_normaliseDoc` (repli sur le NOM DE FICHIER via `selfNames`/`filename`, ex FreePro->« Free Pro ») ; bug archi repare au passage — `PROMPT_LOCAL` etait local a `analyserDocumentLocal` mais reference par Mistral = ReferenceError silencieuse (tier EU casse), hisse au scope module ; (c) IMPORT AUTOMATIQUE zero-clic (batch ET fichier unique) — analyse RTX -> valider-document dans la foulee, plus de bouton « Importer les N ». **SUITE MEME SESSION** : (d) DEVISE DETERMINISTE (commit `f1e0155`) — `lib/compta/devises.js` `assurerEuro()` : le modele IDENTIFIE la devise, le CODE convertit (facture EURL DENTOXCELLENCE 140000 DZD stockee « 140000 € » -> 966 €, corrigee en base). (e) JADOMI creee comme SOCIETE (SAS, id `e1fa165e`) + TRI PAR SOCIETE auto (commit `6d11453`) — `lib/compta/route-societe.js` (routeSociete par destinataire), champ `destinataire` ajoute aux prompts, worker scan-factures route `cabinet_brain_documents.societe_id` ; JADOMI + LK Immo cibles valides. (f) SCAN AUTO SUR LA RTX LE JOUR (commit `6a91362`) — `mail-sync-daemon` : cron 6h remplace par tick opportuniste 8h-20h30 (RTX en ligne = `_rtxCabinetEnLigne`, noeud kind 'agent') + filet serveur 21h05 (sans RTX = classique) ; INTERRUPTEUR par societe (`modules 'scan_auto_off'`, endpoints `/api/compta-scan-auto`, toggle UI). (g) TOILE D'ARAIGNEE — recuperation justificatifs multi-fils (commits `a4d598c` v1, `6b9ca36` v2) : fils = nom de fichier/sujet memorise par le scan (fil d'Ariane) + numero de facture + marchand ; montant = VERIFICATEUR jamais chercheur ; fils forts SANS date + jamais noyes ; CORPS de mail -> PDF via `lib/html-to-pdf` ; regle d'or anti-pub = corroboration marchand + numero/montant exact (jamais une pub qui parle de prix). Reel : 8 justificatifs combles (Anthropic, Stayforlong, Booking x2, AliExpress x3, OVH), PDF valides, reste Uber One 5,99€. (h) GMAIL en APP-PASSWORD illimite (OAuth expirait a 7j) — insere dans comptes_email_societe (chiffre coffre), onboarding dentiste : liens directs + retrait auto des espaces du mot de passe. (i) Bouton « 👤 C'est perso » par facture (commit `c06e13c`) — `PATCH /api/compta/entries/:id/perso`, type 'personnel' ajoute a NON_CHARGE_TYPES (exclu des totaux, garde tracee). RESTE : afficher/lier le rapprochement bancaire dans la fiche facture ; dedup retroactive ; Uber One. TOUT deploye (pm2 reload), commite en LOCAL (branche feat/multi-societes, NON pushe).
+
+**Passe precedente** : Session 17 juillet — VAGUE 2 BUSINESS + INVERSION SHADE (commit `0abf844`). Les 4 derniers modules IA en dur passent par la cascade souveraine : `routes/labo/stock.js` (4 appels), `api/multiSocietes/commerce.js` (3), `api/showroom/produits.js` (1), `routes/labo/shade.js`. Plus AUCUN provider IA codé en dur dans ces fichiers. Socle ajouté : **`sovereignJson()`** dans `lib/ia-router.js` = extraction JSON + **escalade sur confiance** (le nœud local répond d'abord, gratuit ; si le JSON est illisible ou s'auto-évalue sous le seuil, on relance sur le nœud suivant au lieu d'accepter un résultat faible) + `opts.excludeNodeIds`/`opts.numCtx` (additifs). Prouvé en réel : cas facile = france-ovh seul ; seuil non atteint = parcours France→Mistral EU→Claude US ; `sensitive` = France UNIQUEMENT (l'escalade ne peut pas faire fuir la donnée). **DÉCOUVERTE : `shade.js` n'était PAS du business** — il envoyait les PHOTOS CLINIQUES du patient à Claude US pour DEVINER la teinte (donnée de santé hors UE, rescapée de la vague 1 car rangée côté « labo »). Sans valeur clinique de surcroît : une teinte se relève au teintier/spectrophotomètre, une photo non calibrée ne tranche pas A2 vs A3 (le prompt demandait à l'IA de rattraper le « cast couleur »). **Décision fondateur : inverser comme radio-plan** → le praticien RELÈVE (obligatoire, 400 sinon), l'IA STRUCTURE son relevé en local/souverain et n'ouvre JAMAIS la photo (qui reste pièce de référence du dossier). Testé : zéro invention (zones non relevées laissées à null). Module vide (0 cas/0 photo en base) = aucune régression. 2 bugs pré-existants corrigés au passage : regex d'extraction JSON non-gourmand (`/\{[\s\S]*?\}/`) qui tronquait le JSON → 422 à tort (commerce) ; front shade affichait des champs mockés que le back n'écrit jamais (teinte_ia/confidence/zones_analysees) → branché sur les vraies données. Détail : mémoire project_cascade_souveraine_ia.
+**Passe du 17 juillet (autre session, plus tôt)** : ÉCRAN « Comparateur de mes prix » LIVE dans dentiste-pro (commit `07a6d4d`, additif, testé e2e). DÉCOUVERTE : `supplier_prices.gtin` contient la référence FOURNISSEUR, pas un code-barres → 0 € d'économie tant qu'on compare par gtin ; le pont existe (`product_clusters`, 5646 clusters) → comparer par `cluster_id`. Nouvelle priorité 1 avant l'extension navigateur. Voir la section dédiée en fin de CODEX + mémoire project_comparateur_pipeline_etat.
+**Passe precedente** : Session 16 juillet (soir) — CASCADE IA SOUVERAINE (RGPD) : 9 modules IA sensibles (patient/santé + secret avocat) rebranchés du cloud US vers la RTX cabinet / le serveur France (Ollama qwen3.6) — plus AUCUNE donnée de santé ni de dossier client ne part aux USA, et 0 € par appel. Ajout de `sovereignText`/`sovereignVision` dans `lib/ia-router.js` (pilotés par `lib/onprem/node-registry` : `dataClass:'sensitive'` ⇒ RTX+France uniquement). Modules souverains : certificat (ia-doc), radio-plan, chat patient, extraction fiche patient, cas-clinique paro, photos patient, secrétaire IA (était OpenAI), analyses avocat, legal-engine. CHANGEMENT DE PRINCIPE radio-plan : l'IA ne LIT plus la radiographie (jugée non concluante) — le praticien DICTE sa lecture (obligatoire), l'IA la structure/améliore + bâtit le plan (5 spécialistes + arbitre + auditeur, en local). Testé (structuration fidèle FDI, zéro hallucination). Reste : scan produit/stock (données business, 2e vague économies). Détail : mémoire project_cascade_souveraine_ia. — (matin) MODULE CERTIFICAT DESCRIPTIF : l'IA rédige (ne lit plus la radio), signature manuscrite réelle sur le PDF, « Compléter »/« Déverrouiller » un signé, radios stockées durablement (coffre + compression sharp) au lieu de /tmp, nom praticien garanti, envoi patient via lien propre jadomi.fr/d/<token> + garde-fou date de naissance (fini le lien supabase brut au porteur), profession cabinet normalisée, UX premium (modales/toasts, « Voir » avec Signer intégré), CSP frame-src blob. Fichiers : api/ia-doc/index.js, api/ia-doc/patient-download.js (nouveau), api/dentiste-pro/cabinet.js, public/admin/dentiste-pro.html, server.js.
+**Passe precedente** : Session 10 juillet (2) — MODULE ÉQUIPE : JOURNÉE VIVANTE (bidirectionnelle). Recadrage fondateur : l'outil doit être INDISPENSABLE à l'assistante ET NOURRIR le cerveau ; simple/ludique/intelligent ; la féliciter ; JADOMI priorise et trouve le meilleur moment ; la pause est sacrée ; elle dicte pour ne rien oublier ; elle alimente les habitudes de CHAQUE dentiste. AVANT = écran LECTURE SEULE, « fait » déduit de l'horloge, zéro écriture retour. 4 slices livrées (feat/multi-societes, node -c + new Function() + Playwright OK, pm2 reload, backup) : **Slice 1 `7f7cfb7`** — PATCH /team/tasks/:id (valider fait/en cours/reporter/annuler/note/réattribuer ; done→completed_at ; manager=tout, membre=ses tâches) + POST /team/tasks/quick (capture perso tout membre). Colonnes RÉELLES cabinet_brain_tasks, ZÉRO migration ; status libre, placement_status contraint (a_placer|placee). **Slice 2 `8afa543`** — moteur-journee.js placement SCORÉ « meilleur moment » (urgent au plus tôt ; regroupement même métier ; appels pas avant 9h ; pause jamais un creux → pauses[]+enPause) + route remonte les tâches VRAIMENT faites (completed_at) → anneau progression{faites,total,pct} sincère. **Slice 3 `a63854e`** — POST /team/voice (audio mémoire jamais persisté → lib/equipe/transcription.js Whisper SOUVERAIN autonome zéro OpenAI, WHISPER_BASE_URL absent=503 honnête → lib/equipe/parse-taches.js modèle souverain JSON + repli heuristique qui ne perd jamais ses mots) ; /tasks/quick accepte aussi texte libre. **Slice 4 `5ba1d24`+`0275e18`** — ma-journee.html interactif : bouton Fait/pastille → PATCH → anneau réel + félicitation + confettis fin de journée ; barre capture micro(MediaRecorder→/voice)+saisie « videz votre tête, rien ne se perd » ; carte pause « C'est votre pause, profitez » ; urgence badge+tri ; 🎙️ origine vocale. Fix visibilité (paintLive ne reconstruit que si signature change, sinon lignes opacity:0). **Slices 5-7 (suite, prod, commitées)** : **Slice 5** — ajout d'habitude EN UN GESTE sous chaque plateau (« ＋ Ajouter une habitude du praticien » → POST /team/habitudes mode `ajouter` append+dédup ; /journee expose la clé categorie + praticiens_connus) = l'assistante nourrit le cerveau en travaillant (brique fondateur « tel dentiste fait ses soins avec digue »). **Slice 6** — « ce qui a bougé » : diff client prevSlots → badge « décalée (était HH:MM) » + bandeau « Journée réorganisée » quand une urgence repriorise. **Slice 7** — tâches récurrentes : modèle quotidien (status='modele', recurrence JSONB {freq:'quotidien'}) matérialisé en 1 instance/jour (materialiserRecurrences, idempotent) ; toggle « ↻ tous les jours » dans la capture ; icône ↻. ⚠️ recurrence=JSONB (filtrer freq en JS, pas .eq). Vérifié Playwright (0 erreur, boutons/toggle/form OK). RESTE module Équipe : onboarding Doctolib « à l'échelle » = décision produit (Front desk télésecrétariat vs éditeur accrédité) + formulaire self-service connector_config par société, PAS .env (nécessite feu vert fondateur + éventuel enrôlement Doctolib) ; gérer/supprimer les récurrences ; praticien réel du bloc via agenda pour cibler l'habitude. Recherche Doctolib « à l'échelle » (4 agents) : abandonner compte+.env par cabinet ; voies = Front desk télésecrétariat (whitelist IP=pas de 2FA) OU éditeur accrédité api-interf + Ségur 3 niveaux ; onboarding = formulaire + connector_config par société, jamais .env. Voir mémoires project_dash_equipe_journee, project_hub_agenda_apis, feedback_produit_pas_hack_mono_cabinet.
+**Derniere passe (10 juil 1)** : Session 10 juillet — MODULE ÉQUIPE / CONNEXION DOCTOLIB AUTONOME (reprise avant activation live). Vérifié toute la chaîne endpoints→session persistante→pont `dentiste_pro_agenda` = cohérente et prête (GET /doctolib/status répond 401, gardé). Constat .env : `DOCTOLIB_EMAIL/PASSWORD/PIN` = compte PERSO du fondateur, utilisés SEULEMENT par des scripts manuels `scripts/*.js` (jamais le serveur en marche) ; `DOCTOLIB_INBOX_EMAIL/_PASSWORD` = ABSENTES (à ajouter par le fondateur). **CORRIGÉ un footgun** (commit `5aae978`) : le fallback mot de passe de `POST /doctolib/login` (`api/dentiste-pro/team.js`) lisait `process.env.DOCTOLIB_PASSWORD` (compte perso) → se loguer avec l'e-mail JADOMI + le mdp perso = échec silencieux ; remplacé par variable DÉDIÉE `DOCTOLIB_JADOMI_PASSWORD`. Donc NE PAS écraser DOCTOLIB_PASSWORD : ajouter seulement `DOCTOLIB_INBOX_EMAIL`+`DOCTOLIB_INBOX_PASSWORD` ; le mdp du compte JADOMI se saisit UNE FOIS dans l'UI (`public/equipe/connexion-doctolib.html`). **AJOUTÉ des captures de diagnostic** (commit `2c53fb1`) : `snap()` dans `lib/connector/doctolib-session.js` écrit screenshot+URL+DOM(inputs/boutons) dans `uploads/doctolib-sessions/debug/` (gitignoré) aux points ambigus (2FA détectée, login/code refusé, agenda vide) → ajuster les vrais sélecteurs 2FA en regardant la vraie page dès la 1re activation LIVE. Tests purs (loggedInUrl/parseName/dateRange) OK, node -c + pm2 reload OK. RESTE = actions fondateur : créer le compte JADOMI délégué dans Doctolib (Paramètres>Comptes, Administrateur), ajouter les 2 vars .env, puis /equipe/connexion-doctolib (Vérifier→saisir mdp→Activer→coller le code 2FA)→Synchroniser ; ENSUITE seulement sync récurrente + test redistribution absence (ne pas construire la récurrence avant validation live des sélecteurs = spéculatif).
+**Derniere passe (prec. 5-6 juil)** : Session 5-6 juillet — AUDIT SÉCURITÉ PLATEFORME (multi-tenant/IDOR + souveraineté). Branche `feat/multi-societes`. Découverte de fondation : TOUTES les routes tournent en `admin()` service_role (RLS bypassée) → cloisonnement = filtre applicatif `.eq('societe_id'/'cabinet_id')` SEUL ; un filtre oublié = IDOR inter-cabinets. **VOLET A — CARE (données santé) : BOUCLÉ sur les critiques**, 2 commits. **Commit `70d8478`** (14 fichiers) = 17 correctifs IDOR/auth Care + 4 fuites audio : patient-app /confirm-visit (IDOR write) ; photo-ai ×3 (AUTH CASSÉE Bearer jamais vérifié + IDOR + SSRF → `identifyAuth()` réel + scope cabinet/patient + garde SSRF ; NB `dentiste_pro_photos` n'a PAS de colonne patient_id → scope patient via sender_id OU metadata->>patient_id) ; cas-clinique /create (scope societe_id) ; questionnaire /check-expiry (fail-closed) ; chat /read (scope patient) ; triangle /cases/:id joins + PUT validation + /my-photos + /photos/read (resolveActorCabinet tri-acteur) ; **appointments /admin/* = 1 middleware unique validant site_id ∈ societe (ferme 11 routes d'un coup)** ; batch-slots GET /series* + reschedule + delete (scope cabinet appelant) ; agenda 6 routes praticien (requireCabinet, fin du faux cabinet 'default'/'Mode Test') + /checkin durci (cabinet validé + réponse générique anti-énumération + rate-limit + fix frontend tab-agenda.js showQRCodeModal→GET /qrcode car le kiosque codait ?cabinet=default en dur) + seed-chaos verrouillé + /qrcode. **Commit `2556326`** = rate-limit OTP verify (2 couches : IP dédié 10/15min + compteur otp_attempts, invalidation après 5 échecs). Care coche bloquants lançables #1(routes sans auth) #2(IDOR santé) #3(OTP) #4(audio hors-UE). SOUVERAINETÉ : 4 fuites AUDIO coupées d'OpenAI/USA vers Whisper self-hosted (env `WHISPER_BASE_URL`, absent=503, aucun envoi hors UE) : chat-patient-ia, avocat/enquete-transcription (AUDITION harcèlement, secret pro), ia-doc /transcribe, lib/agenda-ia. Déploiement Speaches (Docker 127.0.0.1:8971, pas de GPU sur srv 217) = APRÈS Care. **VOLET B — CARTOGRAPHIE (photo, NON corrigé)** : 🔴 FaceMatch (repo séparé /home/ubuntu/facematch-api) = CATASTROPHIQUE, aucune fondation d'auth, biométrie art.9 servie sans auth + path traversal + zip-slip + IDOR tenant total + secrets réels en clair sur disque + serveurs exposés Internet (217.182.132.136/141.94.10.182) → RÉSOLU (nuit 6 juil) : silo SQLite autonome facmatch.db, PAS connecté à la base patients JADOMI (aucune clé Supabase dans .env, aucune requête patients_jadomi) → vrais patients JADOMI JAMAIS exposés, seulement données de test FaceMatch. Exposition publique COUPÉE (pm2 stop facematch-api port 8000 + kill uvicorn port 8001, rien n'écoute, jadomi intact). RESTE demain : désactiver vhost nginx facematch.bak (sudo, 502 en attendant) + réécrire couche d'auth avant tout vrai scan ; 🔴 `/uploads` = express.static PUBLIC sur tout l'arbre (photos patients Care + audio auditions) = fondation transverse, patron cible = avocat/coffre.js (AES-GCM + serve authentifié) ; 🔴 rush-fichiers download/stream/:id non auth ; 🔴 moat comparateur (`/api/comparateur/search|stats|semantic` ANONYMES → scraped_prices ~219K exfiltrable + import-prices écriture anonyme) — mais prix négociés supplier_prices bien cloisonnés ; 🔴 multiSocietes/communication.js (JWT sans requireSociete → societe_id du header client → PII patients inter-cabinets) ; 🟠 studio/flyer-builder /projects/* IDOR non auth + generate-premium-ad débit wallet non auth ; ✅ SAINS : labo, multiSocietes core (PAS d'élévation de privilège), brain/mail (**BUG 15 RÉSOLU** : mdp IMAP chiffré AES-256-GCM au repos, jamais loggé, jamais renvoyé par l'API), studio core. Ordre correction post-Care proposé (rien lancé, à figer) : /uploads (retro-affecte Care) → communication.js → moat → flyer-builder → FaceMatch (réécriture). Feuille de route Ollama TEXTE (bloquant lancement Care) : #1 copilot=**DeepSeek CHINE** (anonymisation ILLUSOIRE : masque emails/tel + ~15 mots-clés figés mais PAS les noms ni le contenu clinique libre ; contredit règle documentée anti-DeepSeek) ; #2 ia-doc génération doc ; #3 ia-secretary. Marketing (pub/logo) = 🟢 laissé. Git : working tree a du BRUIT préexistant (prothesistes.js INTOUCHABLE, XML gudid) → toujours `git add` CIBLÉ.
+**Derniere passe (prec.)** : Session 5 juillet — AUDIT FABLE 5 JURISPRUDENCE AVOCAT (dashboard-v2, section « Jurisprudence de la semaine » alimentée par Judilibre). 6 bugs signalés, chacun VÉRIFIÉ contre le code ET les données Judilibre live AVANT correction. 5 corrigés + déployés (branche `feat/multi-societes`, pm2 reload zero-downtime, cache `avocat_home_cache` purgé + régénéré, bruit résiduel=0 sur 5 arrêts, arrêt de référence 25-15.732 INTACT). (1) Fuite métadonnées brutes : `lib/legal-providers/jurisprudence-analyzer.js` injectait le `titrage` (libellés de matière EN CAPITALES ex. « STATUT COLLECTIF DU TRAVAIL ») dans resume_faits/points_cles même quand un sommaire existe, + le front affichait `d.solution` brut via `text-transform:capitalize` (« qpcother »→« Qpcother »). FIX : helpers `solutionLabel()` (map code→libellé, inconnu=null=badge masqué), `isMatterLabel()`/`usablePoints()` (rejettent tout texte sans minuscule), `matiereLabel()` (table accentuée fermée) ; CAS 1 synthétise faits/points DEPUIS LE SOMMAIRE officiel (accentué), fallbacks n'injectent plus jamais `titrage` (points_cles=[]) ; nouveaux champs `solution_label`+`matiere` ; front = badge lisible + chip matière discret. (2) Troncature fondement : `.slice(0,220)` coupait « du 21 dec|embre 1950 » → troncature au dernier mot avant 300 + « … » + texte complet en `title`. (4) Tendances 0% partout : `api/avocat/home-juridique.js` `/tendances-public` codait `evolution_percent:0` en dur, `/tendances` authed mettait 100% quand N-1 vide → les deux passent à `null` (front masque la cellule, jamais de faux %). (5) 2 boutons alerte simultanés (HTML statique) → conteneur `#abo-cta` re-rendu par `renderAboCta()` = 1 seul CTA + fréquence si abonné. (6) « Bonjour Maître » figé → `personalizeWelcome()` lit `/api/juridique/profil` (nom), « Maître » neutre. AUCUNE migration Supabase. Backups `.bak-fable5-20260705`. **BUG 3 (accents) : diagnostic Fable INVALIDÉ empiriquement** — Judilibre sert les champs `visa` (fondement) ET `titrage` (matière) SANS accents à la source (24-19.702 : sommaire « déplacement/attaché/décembre » accentué mais visa « deplacement/attache/decembre » nu) ; AUCUN `normalize('NFD')` chez nous. Contenu principal désormais accentué via le sommaire ; matières ré-accentuées par table fermée ; décision fondateur = fondement/visa laissé VERBATIM (ré-accentuation auto risquée : « attache » ambigu). 3 fichiers : jurisprudence-analyzer.js, home-juridique.js, dashboard-v2.html.
+**Derniere passe (5)** : Session 4 juillet (5) — CERTIFICAT MÉDICAL : REFONTE UX COMPLÈTE (retour fondateur en direct). Contexte : reprise sur le module certificat descriptif après coupure. Corrections livrées + reload PM2 (branche `feat/multi-societes`, api/ia-doc/index.js + public/admin/dentiste-pro.html) : (1) BUG RACINE « mes coordonnées ne s'enregistrent pas » = `PUT /api/dentiste-pro/cabinet` renvoyait 404 « Aucun cabinet configuré » (la société n'a PAS de fiche `dentiste_pro_cabinets`) → le front affichait le faux « Configuration sauvegardée localement (API non connectée) » = perdu. FIX `saveCabinetConfig()` : PUT puis POST /cabinet en fallback (crée la fiche si absente) + affiche la VRAIE erreur. `loadCabinetConfig()` : si pas de cabinet → EFFACE les valeurs de démo (Saint-Michel / 12 rue de la Santé) pour qu'elles ne polluent plus les certificats. (2) INFOS PRATICIEN : champs « Nom du praticien signataire » + « RPPS/ADELI » ajoutés dans Configuration (stockés dans `dentiste_pro_cabinets.config` JSONB), chargés/sauvés, envoyés à la génération (avant : adresse/rpps/tel codés VIDES). En-tête + « Je soussigné, Dr… » + signature reprennent le praticien. (3) « Voir » ouvrait un `alert()` texte → ouvre le VRAI PDF archivé (`GET /documents/:id/pdf`, repli texte). (4) DESIGN PDF premium : en-tête cabinet/praticien + filet vert, titres de sections colorés, PHOTOS EN ANNEXE ENCADRÉES (fit sans déformation + légende + analyse), pied légal + bloc signature. (5) ANTI-MARKDOWN : l'IA sortait du markdown (`**`, `|`, tableaux, `---`) affiché brut + doublons (titre/cabinet/formule répétés). FIX prompt = TEXTE BRUT only, titres MAJUSCULES, PAS d'en-tête/titre/formule (ajoutés autour), suppression de la phrase « le soussigné ne certifie pas la réalité des faits » (conditionnel suffit) ; ET renderer PDF durci (strip `*`/`**`/`#`, saut des séparateurs, tables `| a | b |`→`a : b`). (6) SUPPRIMER : `DELETE /documents/:id` (scopé société + efface le PDF du bucket) + bouton avec confirmation renforcée si signé. (7) MODIFIER (sans tout refaire) : snapshot des saisies dans `metadata.input` à la génération ; `editDocument()` repeuple le formulaire ; génération en mode UPDATE via `document_id` (pas de doublon ; signé = immuable → 403). Anciens documents sans snapshot → ÉDITEUR DE TEXTE direct (overlay) qui régénère le PDF via `raw_text` (nouveau param : texte utilisé tel quel, sans IA). (8) Garde-fou timeout 120s conservé. node -c + new Function() sur JS inline OK, test PDF pdfkit + test regex anti-markdown OK. RESTE (à reprendre) : le fondateur doit SAISIR ses vraies infos dans Configuration (nom cabinet, Dr Bahmed Karim, adresse Roubaix, RPPS, tél) puis Enregistrer — vérifier que ça persiste (création fiche cabinet) ; régénérer un certificat PROPRE avec radio jointe (annexe visible) ; l'éditeur raw_text ne réembarque pas les photos des anciens docs ; envisager en-tête auto depuis profil société. AUCUN email métier envoyé sans validation.
+**Derniere passe (4)** : Session 4 juillet (4) — REPRISE APRES COUPURE PC (rebuild exe cabinet). (1) FIX TIMEOUT CERTIFICAT : la route longue `/api/ia-doc/generate-certificat` (redaction Claude 4096t + PDF + photos + archivage HDS) depassait le timeout global 30s de server.js -> garde-fou propre 120s (`req/res.setTimeout(120000)`), la route est deja dans `longRoutes`. Teste e2e (token admin magic-link + societe Precision Dentaire) : **200 + vrai PDF en 11s**, doc draft de test nettoye (DB + bucket HDS). Commit jadomi `e71ad66`. AUCUN email envoye (cette route n'en envoie pas). (2) EXE CABINET FaceMatch REBUILD : fix resilience du moteur HD dans `facematch-api modules/webscan` -> COLMAP `_colmap_loads()` ne retient l'exe que s'il DEMARRE vraiment (detecte DLL manquante / quarantaine antivirus via STATUS_DLL_NOT_FOUND), `ensure_engines` re-telecharge 1x sinon degrade proprement vers pycolmap embarque, `reconstruct()` repli SILENCIEUX pycolmap si le pipeline HD lache, Windows `SetErrorMode`+`CREATE_NO_WINDOW` = ZERO pop-up « colmap.exe erreur systeme » chez le dentiste. Commit `faa7f95` pousse sur `main` (repo karimstock/facematch-cabinet) -> CI `build-cabinet.yml` rebuild `FaceMatch 3D.exe` + installeur (release cabinet-latest). (3) JUMEAU NUMERIQUE 3D publie (viewer patient permanent + `/api/facematch/publish` dans longRoutes) commit `29f818e`. (4) facematch-agent : viewer 3D 100% HORS-LIGNE (Three.js/OrbitControls/PLYLoader vendorises dans `vendor/` + route statique `/vendor` + bundle exe via `--add-data`) commit `bee74d5` pousse, CI rebuild. RESTE : verifier les 2 builds CI (facematch-cabinet + facematch-agent) au vert et republier les exe ; `facematch-api modules/webscan` reste = prov/reconstruct commites. Branche jadomi `feat/multi-societes`.
+**Derniere passe (3)** : Session 4 juillet (3) — CERTIFICAT Phase 2 (persistance + signature immuable) + BUG MAJEUR CORRIGÉ. Le save DB des certificats ne fonctionnait JAMAIS (insert utilisait `patient_name` inexistante, et `type=certificat_initial`/`status=brouillon`/`content_html` NULL violaient les contraintes CHECK+NOT NULL) → chaque certificat était silencieusement perdu. Corrigé : insert sur vraies colonnes (`type='certificat'`, `status='draft'`, `content_html` généré, `metadata.doc_kind` garde la sémantique réelle, nom patient dans metadata). Nouveaux endpoints `/api/ia-doc/documents` (GET liste scopée société), `/documents/:id` (GET détail), `/documents/:id/sign` (POST signature IMMUABLE : draft→signed, garde-fou `.neq('status','signed')` anti-double-signature, `validated_at`+`validated_by`). Front `dentiste-pro.html` : « Mes documents » branché sur la base (loadDocuments fetch DB, lazy-render à l'ouverture onglet), bouton « Valider et signer » (confirm → immuable), documents signés = lecture seule (badge Verrouillé, plus de bouton Valider), viewDocument fetch détail. Preuve E2E service-role OK (insert draft, sign→signed, double-sign bloqué). Contraintes DB `ia_doc_documents` : type∈{certificat,ordonnance,devis}, status∈{draft,signed,validated,sent}. Sélecteur patients-reels AJOUTÉ (recherche /api/dentiste-pro/patients-reels/search, index-based, renseigne patient_id ; FK vérifiée OK vers patients_jadomi ; selectCertPatient affiche TOUTES les infos : naissance/sexe/tél/email/dernière consultation). STOCKAGE HDS + ENVOI PATIENT AJOUTÉS : bucket privé `ia-doc-pdf` (créé), le PDF est archivé à la génération (metadata.pdf_path), endpoints `GET /documents/:id/pdf` (re-téléchargement) et `POST /documents/:id/send-email` (documents SIGNÉS uniquement → lien de téléchargement signé 7j envoyé au patient via emailService, journalisé dans metadata.sent_history). Front : bouton « Envoyer au patient » sur les documents signés (prompt email, défaut = email du patient lié). Round-trip storage prouvé. RESTE Phase 2 : journal de versions complet. PRINCIPE FONDATEUR (4 juil) : « pour tous les passeports c'est idem » = même patrimoine (patients réels + auto-remplissage + envoi email). Passeport patient (tab-jadomi-ia.js) : déjà conforme (patients-reels + email prérempli + POST /send-passeport fonctionnel). COEFFICIENT MASTICATOIRE = CERTIFICAT AUTONOME (décision fondateur : « à part »). Découplé (bouton « Insérer dans un certificat » + masticationToCertificat SUPPRIMÉS, libellé corrigé), relié aux vrais patients (searchMasticPatient), et la route /coefficient-masticatoire-pdf le PERSISTE comme document (metadata.doc_kind='coefficient_masticatoire', archivé HDS) → hérite des endpoints génériques Mes documents/signature/envoi. Full standard atteint.
+**Derniere passe (2)** : Session 4 juillet (2) — CERTIFICAT MÉDICAL DESCRIPTIF (Phase 1) + 2 bugs labo. (1) Règle ZÉRO-INVENTION durcie dans le backend `/api/ia-doc/generate-certificat` : l'IA met en forme UNIQUEMENT la saisie du praticien, faits au conditionnel+guillemets, champ vide = absent (pas de placeholder), ITT jamais suggérée, section « Diagnostic » déductive supprimée. (2) Parcours certificat initial structuré (`dentiste-pro.html`) : examen exo-buccal + endo-buccal avec ODONTOGRAMME FDI réutilisable (`JADOMI_ODONTOGRAM`, dents concernées), retentissement DESCRIPTIF (sans coefficient masticatoire — celui-ci est réservé à l'AUTRE certificat, complémentaire/consolidation, décision fondateur), ITT optionnelle, réserves, bandeau « généré par IA — à valider », dictée générique `dicterInto(fieldId)` sur chaque étape, formulaire visible dès l'ouverture (photos optionnelles). (3) Bugs : `/labo/chat` envoie X-Societe-Id (fini la boucle), `/labo/planning` supprime le fallback `getDemoTechs()` (faux techniciens → état vide). RESTE certificat : Phase 2 (validation/immuabilité/HDS/versions), Phase 3 (chaîne complémentaire + coefficient masticatoire ICI), Phase 4 (notes internes + rappels suivi), PDF annexes légendées, sélecteur patients-reels, en-tête auto depuis profil société. Branche `feat/multi-societes`, node -c + pm2 reload OK.
+**Derniere passe (1)** : Session 4 juillet — CONSOLIDATION AUDITS FABLE 5 (R1→R8) + PHASE 9 (débranchage dentiste-pro). (1) CACHE = cause racine des « fixes invisibles » : `server.js` mettait no-cache seulement sur `.html`, pas les `.js` externes (tab-agenda.js caché 24h) → ajout no-cache pour `.js`/`.css`. (2) Comparateur : le vrai crash était `cmpSearch` INLINE dans `index.html` (pas `comparateur.html`) — gardes `hasPrice` sur tous les `.toFixed` → « Prix indisponible ». (3) Éjection labo : `production/chat/remakes/garanties/planning.html` lisaient de mauvaises clés localStorage (`sb-access-token`, `labo_session`…) → `resolveLaboToken()` scanne la vraie clé Supabase `sb-<ref>-auth-token`. Les routes labo n'étaient PAS 404 (401/Profil requis). (4) dentiste-pro : 403 `my-permissions` = rôle réel `proprietaire` non reconnu (corrigé 3 endroits : shared.js, team.js:84 et :575) ; dédup appels today/stats/pipeline via `dashGet` (cache 5s) ; blocs accueil branchés sur `/dashboard/today`. (5) compta : badge « À vérifier » >10k, regex homoglyphes durcie (attrape Tᥱmᥙ/Sephorɑ), toggle 0€, accents (« Validées », mois), Analytics via fallback société localStorage. (6) stock : statut périmé prime sur le niveau (plus de « Optimal »+« EXPIRÉ »). (7) PHASE 9 : TOUS les onglets dentiste-pro débranchés des mocks — Rappels→`/dashboard/rappels-today`, Chat→`/chat/conversations`, Agenda/Pipeline/Patients/Waitlist/Stats en états vides honnêtes. ZÉRO faux patient dans la source. Branche `feat/multi-societes`, backups + node -c + pm2 reload OK. RESTE : chargement messages chat, TVA extraction (pipeline IA), mail statut Yahoo menteur, dédup rétroactive compta (dry-run), pipeline accents, ticker LEFEVRE (vraie donnée), profil labo à configurer par le fondateur.
 **Proprietaire** : Dr Karim Bahmed (dentiste Roubaix + fondateur JADOMI)
+
+**⚠️ PATTERN PERMANENT — /uploads est GATÉ (URL signée) depuis le 6 juil.** `server.js` ne sert plus `/uploads` en `express.static` ouvert : un gate sépare les dossiers PUBLICS (whitelist marketing : studio-photos, studio-videos, flyers, flyer-builder, staging, ads, imported + 1er segment = UUID société pour les sites vitrines) des dossiers SENSIBLES (tout le reste = **deny-by-default**, exige une URL signée). Helper unique `lib/uploads-signing.js` : `signUploadUrl(path,{ttlSec\|long})`, `signIfUpload(url)` (relatif OU absolu), `signJsonMiddleware(keys)` (signe auto les clefs d'URL d'un routeur), `verifyUploadRequest()`. Clé HMAC dérivée de `JWT_SECRET`, fail-closed. **RÈGLE POUR TOUTE FUTURE SESSION : si tu ajoutes un module qui écrit dans `/uploads/<sensible>/` et renvoie l'URL au frontend (`<img>`/`<audio>`), tu DOIS signer l'URL À LA SORTIE (stocke le chemin BRUT en DB, signe à la lecture) via `signIfUpload()` ou monte `signJsonMiddleware()` sur le routeur — sinon 403 direct.** TTL `{long:true}` pour les liens permanents (passeport blanchiment). Filet : les 403 sont journalisés dans `logs/uploads-gate-denied.log` (path + referer). Déjà câblés : chat-patient-ia (patient-docs), cas-clinique (+passeport long), snap (long), facematch (long), triangle+cases+reseau (middleware routeur), patients-reels. Vérifiés NON concernés (servis par endpoint authentifié ou fichier détruit après usage, jamais en `/uploads` statique) : copilot (analyse serveur only), enquetes-audio (audio supprimé après transcription Whisper), releves/releves-analyses/releves-pdf (JSON/PDF lus côté serveur), ordonnances (`docs/uploads` = mount distinct hors gate), mail-replies (JSON serveur), coffre (endpoint déchiffré authentifié). Différés par décision d'archi — VÉRIFIÉS sûrs : **rush/stl** — le vrai flux labo passe par R2 (upload `/api/rush/fichiers/upload` chiffré) + download `GET /api/rush/fichiers/download|stream/:id` (URL présignée R2 48h ou `res.download` auth), **hors gate**. Les seuls émetteurs `/uploads/stl/` sont des réponses d'upload legacy (`api/rush.js POST /upload-stl` + `api/routes/commandes.js` intouchable) dont le path n'est pas re-rendu (prothesiste.html ignore la réponse). **0 hit nginx sur `/uploads/stl` depuis >2 semaines** → rien à câbler, différer sûr. **imported** — endpoint `POST /api/media/upload` (monté `/api/media`) appelé UNIQUEMENT depuis `public/vitrines/` (upload-media + export-wizard) = contexte studio/vitrine, MIME image/vidéo only, stockage R2 (servi par Cloudflare) ; local `/uploads/imported/` = fallback dormant (dir inexistant). Reste PUBLIC (média vitrine affiché sur sites anonymes — le signer casserait les vitrines). Durci le 6 juil : `POST /api/media/upload` valide désormais `societe_id` (contre `user_societe_roles`, 403 si non possédé, absent=null non attribué pour préserver export-wizard) ET `analysis_id` (contre `site_analyses.societe_id` possédée, 403 si étrangère, 404 si inexistante) — même classe d'IDOR que bug 16, source de vérité réutilisée (`api/multiSocietes/middleware.admin`). 7 branches vérifiées contre données prod (studio 200, société/analysis étrangère 403, inexistante 404, passthroughs 200). N'impacte pas l'affichage public (endpoint upload-only). `imported` reste PUBLIC. À NE PAS faire : whitelister un dossier contenant de la PII pour « régler » un 403.
 
 ===============================================================
 # 1. VISION PRODUIT
@@ -749,6 +766,252 @@ Violation = incident de production. Zero tolerance.
 ===============================================================
 # 6. HISTORIQUE DES PASSES
 ===============================================================
+
+## Session 25 juillet 2026 (suite) — Compta : le rapprochement devient un MOTEUR a plusieurs yeux, et il se souvient
+Branche `feat/multi-societes`, commit `2eb5991`. Suite directe de la session ci-dessous : la regle de rapprochement etait enfouie dans `server.js` et tenait en une ligne (montant a 2 % pres + un mot du fournisseur dans le libelle), dupliquee entre le rapprochement automatique et le calcul de certitude.
+- **Nouveau `lib/compta/rapprochement.js`** (SOURCE UNIQUE, 100 % deterministe, zero appel IA) : plusieurs regards INDEPENDANTS sur une meme paire prelevement <-> facture, chacun rendant une preuve ou rien — **le montant** (au centime, porte d'entree non negociable), **le nom** (mot entier de preference : « edf » ne matche pas « medfinance »), **la memoire** des libelles deja rattaches, **la reference** de facture presente dans le libelle, **la chronologie** (une facture posterieure au debit = alerte), **la devise d'origine** (« PAIEMENT CB 1024 CNY » face au `montant_original`), **le mode de paiement** (especes contre prelevement = alerte).
+- **Le vert se merite** : `sur` (vert) exige le montant au centime + au moins une preuve FORTE + aucune alerte + AUCUNE AMBIGUITE (une seule facture peut pretendre a la ligne). Tout le reste est rattachable mais reste orange « a verifier ». Mieux vaut un trou qu'une erreur.
+- **LA MEMOIRE (regle fondateur « ce qui est reconnu une fois se rejoue tout seul »)** : chaque lien pose ou confirme par le praticien enseigne « ce libelle bancaire = ce fournisseur ». La signature d'un libelle ignore dates, montants et numeros qui changent chaque mois ; **quand la banque ne nomme personne (« PRLV SEPA 4578 »), on retient le numero de mandat**, stable d'un mois sur l'autre — c'est exactement le cas ou le praticien avait besoin qu'on se souvienne. Stockee en LOCAL a cote des releves (`_alias-rapprochement.json`), elle ne quitte jamais le serveur France.
+- **Un rapprochement deja pose n'est JAMAIS defait** : le moteur plus strict ne s'applique qu'aux lignes orphelines.
+- **BUG attrape et corrige** : le fichier de memoire vit dans le dossier des releves, ou **tout `*.json` etait lu comme un MOIS** — il serait apparu comme un MOIS FANTOME dans l'onglet Releve (cf l'incident du faux « fevrier »). `_comptaEstFichierReleve` ecarte les fichiers de travail prefixes `_` aux **6 endroits** qui listent ce dossier.
+- **Tests** : `node scripts/_test_moteur_rapprochement.js` = **27/27** (unitaire, donnees inventees) ; `node scripts/_e2e_rapprochement.js` = **43/43** sur les vraies routes (5 checks ajoutes : memoire ecrite, apprise au bon fournisseur, rejouee le mois suivant, et pas de mois fantome ; releves restaures a l'identique, empreinte SHA-256 verifiee). `node -c` + `pm2 reload` OK.
+- **Mesure a blanc** (`scripts/_mesure_moteur_rapprochement.js`, n'imprime que des compteurs) : 384 debits, 45 deja rapproches, 339 orphelins -> **54 ont une facture au centime**, dont **1 seul** que le moteur accepte de trancher seul (preuve forte + sans ambiguite) et **53 rendus au praticien en orange, dont 36 ambigus** (plusieurs factures du meme montant). Le moteur ne rattache pas plus qu'avant : il rattache MIEUX, et dit pourquoi.
+- **LA FILE DE VALIDATION (commit `8ab49b5`)** : `GET /api/compta-rapprochement/pistes` rend EN UN APPEL tous les prelevements sans facture avec les factures qui peuvent les justifier (jusqu'a 3 possibilites par ligne, classees, avec leurs raisons). Une facture n'est jamais proposee sur deux lignes a la fois. Bouton « 🕸 Pistes de rapprochement » dans l'onglet Releve : le praticien valide a la chaine au lieu de chasser ligne par ligne (chaque validation passe par `lier`, donc apprend un alias et marque orange si ce n'est pas certain). Mesure reelle : **30 pistes presentees, 439 ms, zero facture proposee deux fois** ; 53 lignes ont une facture au centime, l'ecart venant des lignes deja justifiees autrement et de la regle « une facture = une ligne ».
+
+## Session 25 juillet 2026 — Compta : le rapprochement bancaire visible (et corrigeable) DEPUIS la facture
+Branche `feat/multi-societes`. Demande fondateur : « dans la fiche d'une facture, je veux voir a quel prelevement elle est rapprochee, et pouvoir la relier a une autre ligne si le rapprochement s'est trompe ».
+- **Fichiers** : `server.js` (4 routes + `_comptaRematch` durci + fusion `analyser-releve`), `index.html` (bloc fiche facture + selecteur de ligne), `scripts/_e2e_rapprochement.js` (nouveau test souverain).
+- **Lecture a l'envers** : `GET /api/compta-rapprochement/:docId` retrouve la ligne de releve qui porte la facture (le lien est stocke dans le releve, pas dans la facture). Affiche « Rapprochee au prelevement du JJ/MM/AAAA — LIBELLE X € », le mois du releve et si le rapprochement est automatique ou fait a la main.
+- **Correction manuelle** : `GET .../candidats` (debits classes montant exact d'abord, puis ecart et proximite de date ; recherche libre `q` pour les libelles qui ne nomment pas le marchand type « PRLV PAYPAL » ; ligne actuelle et lignes deja occupees signalees), `POST .../lier`, `POST .../delier`.
+- **Integrite compta** : une facture ne justifie QU'UNE ligne (pre-passe des factures deja accrochees dans `_comptaRematch`, tous mois confondus) ; un lien manuel n'est jamais ecrase par l'automatique ; une facture deliee a la main est refusee durablement sur cette ligne (`rapprochement_refuse`), y compris apres re-analyse du mois.
+- **Les 2 tables** gerees : `documents_compta` (`dc:<id>`, user-scoped) et `cabinet_brain_documents` (societe-scoped, acces verifie) ; pas de bouton PDF mort pour les ecritures sans fichier.
+- **SENS INVERSE — PROPOSITIONS (meme session, commit `837f321`)** : `GET /api/compta-rapprochement/suggestions?periode=&idx=` propose, pour un prelevement orphelin, les factures qui peuvent coincider. **REGLE FONDATEUR : montant AU CENTIME PRES, sinon on ne propose pas** (« un a peu pres en compta, c'est une erreur qui attend son heure » ; le cas mensualite EDF reste couvert par la recherche guidee 🔎). Les DEUX tables sont fouillees — `cabinet_brain_documents` (les 213 factures du scan mail) etait totalement invisible au rapprochement jusqu'ici. Factures deja accrochees ailleurs exclues. Chaque proposition porte ses RAISONS (montant identique au centime / nom present dans le libelle / ecart en jours).
+- **ETAT « A VERIFIER » (couleur differente, demande fondateur)** : la certitude est CALCULEE — `sure` = montant au centime ET fournisseur nomme dans le libelle (vert) ; tout le reste = rattache mais `rapprochement_a_verifier` (orange), jamais fondu dans le vert. `POST /api/compta-rapprochement/confirmer` = « j'ai verifie, c'est elle » -> vert. UI : section « Rapprochements a verifier » dans le releve, badge orange dans les listes de transactions, bloc orange + bouton de confirmation dans la fiche facture.
+- **PIEGE EXPRESS attrape par le test** : `/api/compta-rapprochement/suggestions` etait avalee par `/:docId` (declaree avant) et repondait 200 « aucun lien » au lieu de proposer. Les routes litterales doivent etre declarees AVANT les routes a parametre.
+- **Mesure reelle** : 384 debits, 314 orphelins ; 54 orphelins ont une facture au centime pres (26 sans ambiguite, 28 avec plusieurs candidates), dont 5 grace aux factures du scan mail.
+- **Tests** : `node scripts/_e2e_rapprochement.js` = 38/38 OK sur les vrais releves (snapshot + restauration verifiee par empreinte), 10/10 OK sur une facture auto-scannee, 401 sans token, 403/404 sur une autre societe. node -c + new Function() + pm2 reload OK.
+
+## Session 16 juillet 2026 (soir) — CASCADE IA SOUVERAINE : fin des fuites de données de santé vers les USA
+Branche `feat/multi-societes`. Retour fondateur : « waw c'est grave, RGPD bafoué, j'ai une RTX, ça doit être fonctionnel, on a tout fabriqué ». Constat : les modules IA construits AVANT l'orchestrateur on-premise appelaient le cloud US en direct (Anthropic/OpenAI) — donnée patient et secret avocat partaient aux USA. Ce n'est pas N bugs, c'est **1 décision d'archi** : tout ce qui est sensible passe par la cascade souveraine.
+
+**Ajout `lib/ia-router.js`** : `sovereignText(system, user, {dataClass,maxTokens})` et `sovereignVision(system, user, images[], {dataClass})` — cascade pilotée par `lib/onprem/node-registry.pickChain`. `dataClass:'sensitive'` ⇒ SEULS les nœuds souverains (RTX cabinet tier 0 + serveur France OVH tier 1, Ollama `qwen3.6:35b-a3b`) sont éligibles ; Mistral/Claude/DeepSeek refusent le 'sensitive' (config `onprem-nodes.json`). Retour `{text,nodeId,sovereign,tier}` ; erreur claire si tout le souverain est down (jamais de fuite silencieuse). « Souverain » = la donnée reste en France ; le serveur France couvre TOUT LE MONDE (avocat sans RTX, dentiste sur PC portable), la RTX est un bonus tier 0.
+
+**9 modules rebranchés + testés live** (pm2 reload, node -c) : `api/ia-doc` (certificat, callClaude→sovereignText), `api/dentiste-pro/chat-ia`, `.../patients` (vision), `api/cas-clinique` (paro+reco), `api/ia-secretary` (adaptateur `sovereignChat` remplace OpenAI/gpt-4o-mini), `api/avocat/analyses` (helper callClaude), `api/avocat/legal-engine`, `api/dentiste-pro/photo-ai` (vision, URL→base64), `api/radio-plan`. Déjà souverain avant : `lib/compta/analyse-document`.
+
+**CHANGEMENT DE PRINCIPE radio-plan (décision fondateur)** : l'IA ne LIT PLUS la radiographie (« on n'est pas fort dessus, pas concluant ; le but c'est d'aider à établir le plan, pas d'analyser »). Nouveau `SYS_STRUCTURER` : le praticien DICTE sa lecture (`observations_vocales` désormais OBLIGATOIRE → 400 si absente), l'IA la structure/améliore sans rien inventer, puis les 5 spécialistes + arbitre + auditeur bâtissent le plan — tout en local, texte uniquement (image plus envoyée à l'IA, imageBlock→null ; image conservée pour affichage/dossier). Les 3 endpoints (/analyze,/refine,/compte-rendu) ne streament plus token-par-token (bufferisé puis envoyé). Coût IA local = 0. Testé : lecture dictée « 26 carie mésiale, 36 dévitalisée reprise distale, 46 absente, perte osseuse modérée » → structurée fidèlement, FDI correct, zéro invention.
+
+**Perf honnête** : texte ~15-20 s/étape ; plan complet quelques minutes sur serveur France (CPU), rapide sur RTX. **RESTE** : scan produit/stock (`routes/labo/stock.js`, `api/showroom/produits.js`, `routes/labo/shade.js`, `api/multiSocietes/commerce.js`) = données business (économies, pas RGPD) → 2e vague ; `avocat/enquete-interne`+`moteur-strategique` déjà Mistral EU (pas USA). Cloud légitime (contenu public) : `vitrines/*`, `studio/*`, `ai-studio/*` → ne pas toucher. Mémoire : `project_cascade_souveraine_ia`.
+
+## Session 16 juillet 2026 — MODULE CERTIFICAT DESCRIPTIF : l'IA rédige (ne lit plus), signature réelle, radios durables, envoi patient sécurisé
+Branche `feat/multi-societes`. Retour terrain fondateur (dentiste, en consultation). Fichiers : `api/ia-doc/index.js`, `api/ia-doc/patient-download.js` (nouveau), `api/dentiste-pro/cabinet.js`, `public/admin/dentiste-pro.html`, `server.js`. `node -c` + `new Function()` OK, `pm2 reload`, backups. Aucune migration SQL (bucket créé via API). Fixes data en base (adresse cabinet+société, `praticien_nom`, reconstruction snapshot Adem).
+- **Certificat : l'IA n'ANALYSE PLUS la radio.** Vision auto (`analyze-media`) débranchée du flux : le praticien saisit son analyse radiographique (champ `cert-analyse-radio`), l'IA REFORMULE seulement. Racine : l'IA ratait une fracture 11 et hallucinait. Cf [[feedback-lecture-radio-dentaire]].
+- **Signature réelle** : pavé canvas (`openSignaturePad`) → apposée sur le PDF (zone signature) → `/sign` verrouille. Avant = verrou logique sans signature visible.
+- **Évolution d'un signé** : « Compléter » = nouvelle version datée (dup snapshot, original intact) ; « Déverrouiller » = `POST /documents/:id/unlock` (correction d'erreur). Un signé = photo datée médico-légale.
+- **Radios DURABLES + compressées** : avant dans `/tmp` (effacées au reboot → « radios disparues »). Désormais compression `sharp` (~90 %) + coffre Storage `ia-doc-media`. `getMediaBuffer` (/tmp cache→coffre), `GET /media/:id` (aperçu). `media_ids` réinjectés à la signature (sinon la radio sautait).
+- **Nom praticien OBLIGATOIRE** : était vide → garde-fou serveur (récupère `config.praticien_nom`) + `praticien_nom="Dr Bahmed Karim"`.
+- **Envoi patient PRO + SÛR** : lien brut `supabase.co` (au porteur) → lien propre `jadomi.fr/d/<token>` (HMAC crypto, 7 j) + garde-fou DATE DE NAISSANCE (`patient-download.js` monté sur `/d`). Règle permanente [[feedback-patient-facing-pro-securise]].
+- **Profession cabinet** : contrainte DB refusait `chirurgien_dentiste` (et 8 autres libellés) → normalisation vers l'enum + libellé exact en `config.profession_precise`. Bug voisin corrigé : PUT /cabinet écrivait `telephone` dans `email`.
+- **UX premium** : `confirm/prompt/alert` natifs → modales JADOMI + toasts. « Voir » = aperçu PDF in-app (iframe) + bouton Signer. CSP `frame-src`/`object-src` : ajout `blob:` (aperçu PDF).
+
+## Session 7 juillet 2026 — DURCISSEMENT PRÉ-LANCEMENT : XSS multi-modules + seed fantôme + RLS produits
+Branche `feat/multi-societes`. Discipline « on ne suppose pas corrigé » (✅ = commit réel + test live ; cf incident commit fantôme #20). Registre = `SECURITY-AUDIT-REGISTRY.md`.
+- **XSS stocké dentiste-pro** (commit `caa28f7`, VALIDÉ LIVE : nom `<img onerror>` → inerte) : nom patient/membre injecté brut en `innerHTML` à 3 sites (connecteur import CSV `renderPatients`, team-card, onclick delete) → `esc()`. Audit complet : tous les autres rendus déjà échappés. Même commit : bug fonctionnel « patient créé invisible » (`createPatient()` UI routé `/patients` legacy → `/patients-reels` = source lue par la liste ; `prenom` NOT NULL respecté).
+- **XSS avocat + patient** (commit `ba70952`) : `avocat/dashboard.html` = 8 rendus non échappés (dossiers, panel, saisies temps, honoraires, relances, **noms de pièces uploadées** = attaquant-contrôlable, timeline, domaine) → `escapeHtml`. Décision : NE PAS basculer sur `dashboard-v2.html` (parité vérifiée : la v2 est un espace par-dossier, il lui manque clients/dossiers/coffre/relances/risques/recherche/visio) → porter l'échappement dans l'ancien. `patient/login.js` = XSS **reflété NON authentifié** via `?cabinet=` (lien piégé → overlay phishing) → `esc()` local. RESTE (batch suivant) : app patient `chat.js`/`mes-cas.js`/`mes-rdv.js`/`mes-visites.js`/`documents.js` (aucun helper esc).
+- **Seed fantôme « données d'un autre »** (finding #48) : nouveau compte dentaire affichait 14 produits (« Protein Granarola », « isabelle »). Racine : table `produits` (20 seed orphelin `owner_id=NULL` + 4 compte test) **lisible par `anon` en direct** (aucune RLS) → dump inter-cabinets. FAIT : table vidée (24→0 via service_role node) = compte vierge honnête. RESTE (1 geste fondateur) : exécuter `sql/produits_rls.sql` (RLS owner + REVOKE anon ; service_role bypasse → zéro régression, y compris marketplace eco/check). Péremption `/summary-user` déjà scopée `user_id` (pas la fuite). #50 = décision produit modèle portée stock cabinet/praticien (chantier séparé).
+- NB Git : working tree contient du BRUIT préexistant (prothesistes.js INTOUCHABLE modifié, XML gudid) → `git add` CIBLÉ, jamais `git add .`.
+
+## Session 5-6 juillet 2026 — AUDIT SÉCURITÉ PLATEFORME (multi-tenant/IDOR + souveraineté données)
+Branche `feat/multi-societes`. Contexte : audit systématique déclenché sur le cloisonnement inter-cabinets. Découverte de fondation TRANSVERSE : 100% des routes en `admin()` service_role (RLS Supabase bypassée), donc le cloisonnement repose UNIQUEMENT sur le filtre applicatif `.eq('societe_id'/'cabinet_id')` — un filtre oublié = IDOR inter-cabinets. Méthode : 6 vérifications par route (auth ? scope revalidé sur chaque id ? validation ? filtre société sur chaque requête ? fuite de champ sensible ? effets de bord ?), agents d'audit parallèles (lecture seule) puis vérification manuelle en code de chaque ❌ AVANT correction.
+**VOLET A — CARE (données de santé) : bouclé sur les critiques.** Commit `70d8478` (14 fichiers) = 17 IDOR/auth + 4 fuites audio ; commit `2556326` = rate-limit OTP. Détail des correctifs : voir l'entrée « Derniere passe » en tête de CODEX. Points saillants : (a) photo-ai avait une AUTH CASSÉE (le token Bearer n'était jamais vérifié, `Bearer x` passait) + SSRF via photo_url → helper `identifyAuth()` + garde `isSafePhotoUrl()` ; (b) appointments /admin/* = fix SYSTÉMIQUE par 1 middleware unique au point de montage `router.use('/admin')` validant que le `site_id` (header/query/body, public) appartient bien à `req.societe` — ferme 11 routes d'un coup ; (c) agenda avait un routeur ENTIER sans auth (faux cabinet 'default'/'Mode Test' via un `router.use` master-fake) → requireCabinet sur les 6 routes praticien (le frontend envoyait déjà token+X-Societe-Id, zéro régression), /checkin (borne kiosque) durci en réponse générique anti-énumération + cabinet validé + rate-limit, avec fix frontend paire (le kiosque codait `?cabinet=default` en dur). SOUVERAINETÉ (RGPD art.9) : 4 points de transcription audio envoyaient l'audio à OpenAI/USA (chat patient, AUDITION avocat harcèlement = secret pro, dictée praticien ia-doc, secrétaire IA agenda) → tous basculés sur un Whisper self-hosted via env `WHISPER_BASE_URL` (endpoint OpenAI-compatible ; absent = 503/null, AUCUN envoi hors UE). Déploiement Speaches (Docker bind 127.0.0.1:8971, modèle faster-whisper CPU — pas de GPU sur srv 217) programmé APRÈS Care.
+**VOLET B — CARTOGRAPHIE (photo complète, RIEN corrigé hors Care) :** classement du plus exposé au plus sûr — (1) 🔴 FaceMatch (repo SÉPARÉ `/home/ubuntu/facematch-api`, vrai module biométrique ; le module `facematch` de jadomi = 2 routes leurres) : AUCUNE fondation d'autorisation, biométrie (visages/DICOM/scans 3D) servie sans auth sur des dizaines de routes, path traversal, zip-slip, IDOR tenant total, secrets réels en clair sur disque (.env), `encrypt_data` = faux AES (XOR maison), serveurs liés 0.0.0.0 exposés Internet (217.182.132.136 / 141.94.10.182) = prototype NON déployable sur vrais patients → RÉSOLU (nuit 6 juil) : FaceMatch = silo SQLite autonome, PAS connecté à la base patients JADOMI (pas de credentials Supabase, pas de sync) → vrais patients jamais exposés. Exposition publique COUPÉE (pm2 stop + kill 8000/8001). RESTE : désactiver vhost nginx (sudo) + réécrire la couche d'auth ; (2) 🔴 `/uploads` servi en `express.static` PUBLIC (server.js:3226) = photos patients Care + audio auditions avocat accessibles par simple obscurité de nom → fondation transverse, patron cible = `avocat/coffre.js` (chiffrement AES-256-GCM au repos + route de serve authentifiée qui vérifie le propriétaire) ; (3) 🔴 rush-fichiers download/stream/list par id SANS auth ; (4) 🔴 moat comparateur : `/api/comparateur/search|stats|semantic` ANONYMES exposent toute la base `scraped_prices` (~219K prix, 25 fournisseurs) + `/api/scan/import-prices` = écriture anonyme (empoisonnement) — MAIS les prix négociés confidentiels par cabinet (`supplier_prices`) sont bien cloisonnés sur /api/achats/* ; (5) 🔴 `multiSocietes/communication.js` : JWT sans `requireSociete`, `societe_id` pris du header client → PII patients inter-cabinets ; (6) 🟠 studio/flyer-builder /projects/* IDOR non auth + generate-premium-ad débit wallet non auth. SAINS : labo (scope prothesiste dérivé serveur), multiSocietes core (PAS d'élévation de privilège — vérifié), brain/mail (**BUG 15 = NON-BUG** : mdp IMAP chiffré AES-256-GCM au repos, jamais loggé, jamais renvoyé par l'API — seule réserve : clé de chiffrement par défaut en dur si ENCRYPTION_KEY absent), studio core. Ordre de correction post-Care PROPOSÉ (rien lancé, à figer avec le fondateur) : /uploads (retro-affecte Care) → communication.js → moat → flyer-builder → FaceMatch. Feuille de route Ollama TEXTE (bloquant lancement Care) : #1 `copilot`=DeepSeek CHINE (anonymisation illusoire : masque emails/tel + ~15 mots-clés médicaux figés mais PAS les noms — malgré le commentaire — ni le contenu clinique libre ; contredit la règle documentée anti-DeepSeek ; ex. « ostéonécrose sous biphosphonates » part verbatim) ; #2 ia-doc génération doc médical ; #3 ia-secretary. Marketing (pub/logo/image) = 🟢 pas de PII, laissé sur OpenAI. NB Git : working tree contient du BRUIT préexistant (prothesistes.js INTOUCHABLE modifié, XML gudid supprimés) → toujours `git add` CIBLÉ sur ses fichiers, jamais `git add .`.
+
+## Session 5 juillet 2026 — AUDIT FABLE 5 : 6 bugs Jurisprudence de la semaine (module Avocat)
+Branche `feat/multi-societes`. 3 fichiers : `lib/legal-providers/jurisprudence-analyzer.js`, `api/avocat/home-juridique.js`, `public/avocat/dashboard-v2.html`. Fable 5 a fourni un brief de 6 bugs sur `/avocat/dashboard` (section « Jurisprudence de la semaine », Judilibre). Méthode fondateur respectée : reproduire/vérifier CHAQUE point en code + curl Judilibre live AVANT de coder, verdict VRAI/FAUX/DÉJÀ-FAIT, puis corriger 1→6.
+- **BUG 1 (fuite métadonnées brutes) — VRAI, corrigé.** Racine : l'analyseur retombait sur `titrage` (matières EN CAPITALES : « STATUT COLLECTIF DU TRAVAIL », « QUESTION PRIORITAIRE DE CONSTITUTIONNALITE ») pour `resume_faits`/`points_cles`, MÊME sur les arrêts avec un bon sommaire ; et le front rendait `d.solution` brut via `text-transform:capitalize` (Judilibre `solution="qpcother"` → « Qpcother »). Fix : `solutionLabel()` (map code→libellé lisible, code inconnu → null → badge masqué, jamais de valeur brute), `isMatterLabel()`/`usablePoints()` (un vrai point contient des minuscules), `matiereLabel()` (table `MATIERE_ACCENTS` fermée et accentuée). CAS 1 (sommaire officiel) synthétise désormais faits/points À PARTIR DU SOMMAIRE (1 appel IA, accentué, ancré) ; tous les fallbacks n'injectent plus `titrage` (points_cles=[]). Exposés : `solution_label`, `matiere`. Front : badge solution mappé + chip « matière » discret (jamais en Faits/Points).
+- **BUG 2 (troncature fondement) — VRAI, corrigé.** Front `.slice(0,220)` coupait « du 21 dec ». → troncature intelligente (dernier espace avant 300 + « … ») + texte complet en infobulle `title`.
+- **BUG 3 (accents supprimés) — CAUSE FABLE INVALIDÉE (preuve live).** Judilibre sert `visa` (fondement) et `titrage` (matière) SANS accents à la source (24-19.702 : sommaire accentué, visa nu). AUCUN `normalize('NFD')` dans le pipeline (le seul est dans `verification-docs.js`, hors sujet), `stripHtml` n'y touche pas → aucune migration de base. Mitigation : contenu principal désormais tiré du sommaire accentué + matières ré-accentuées (table). Décision fondateur : fondement/visa laissé VERBATIM (ré-accentuation auto risquée, « attache » ambigu).
+- **BUG 4 (tendances 0% partout) — VRAI, corrigé.** Le dashboard appelle `/tendances-public` qui codait `evolution_percent:0` en dur ; `/tendances` authed mettait 100% quand la période N-1 est vide (fenêtre `updated_at` ≠ date de décision). → les deux renvoient `null` quand pas de N-1 fiable, le front masque la cellule (jamais de faux %). Compteurs intacts (Licenciement 198, Inaptitude 53…).
+- **BUG 5 (2 boutons alerte) — VRAI, corrigé.** « Activer » et « Désactiver » étaient tous deux en HTML statique. → conteneur `#abo-cta` re-rendu par `renderAboCta(actif,freq)` : 1 seul CTA, fréquence affichée si abonné, état conservé au rechargement.
+- **BUG 6 (Bonjour Maître générique) — VRAI, corrigé.** Le seul override du header ne se déclenchait que déconnecté. → `personalizeWelcome()` lit `GET /api/juridique/profil` (nom), fallback « Bonjour Maître », « Maître » neutre (pas de Mme/M.).
+- **Déploiement/preuve** : node -c + `new Function()` (3 blocs JS inline) OK, pm2 reload zero-downtime, cache `avocat_home_cache` (jurisprudence_semaine/tendances/a_retenir) purgé + régénéré, audit live = 0 bruit résiduel, 25-15.732 (référence Fable) intacte. Backups `.bak-fable5-20260705`. AUCUNE migration Supabase. Cf mémoire `project_veille_juridique_ancrage`.
+
+## Session 4 juillet 2026 (3) — CERTIFICAT Phase 2 : persistance réelle + signature immuable
+Branche `feat/multi-societes`. 2 fichiers (`api/ia-doc/index.js`, `public/admin/dentiste-pro.html`).
+- **BUG MAJEUR CORRIGÉ** : le save DB des certificats n'a JAMAIS marché. L'insert `ia_doc_documents` visait `patient_name` (colonne inexistante) et posait `type='certificat_initial'`, `status='brouillon'`, sans `content_html` → violait `type_check` (∈ certificat|ordonnance|devis), `status_check` (∈ draft|signed|validated|sent) et NOT NULL sur `content_html`. Tout partait dans le `catch` best-effort silencieux : ZÉRO certificat persisté. Corrigé : `type='certificat'`, `status='draft'`, `content_html` généré (escape+pre-wrap), nom patient + `doc_kind` (certificat_initial|compte_rendu) dans `metadata`, `patient_id` (null tant que pas de sélecteur).
+- **Endpoints** (requireAuth = auth+société) : `GET /api/ia-doc/documents` (liste scopée `societe_id`, mappe metadata.patient_name), `GET /api/ia-doc/documents/:id` (détail content_text/html), `POST /api/ia-doc/documents/:id/sign` (signature IMMUABLE : refuse si déjà `signed` 409, update `status=signed`+`validated_at`+`validated_by` avec garde-fou concurrent `.neq('status','signed')`).
+- **Front** : `loadDocuments()` fetch la vraie base (plus de tableau local éphémère), lazy-render à l'ouverture de l'onglet ia-doc, `certDocHeaders()` (getToken+patSocieteId comme le reste du dashboard), bouton « Valider et signer » (confirm explicite → immuable), documents `signed` = lecture seule (badge « Verrouillé », bouton Valider retiré), `viewDocument` fetch détail, `generateCertificat` recharge la liste au lieu d'un push local.
+- **Preuve E2E** (service-role, société Precision Dentaire c8fe3f0f) : insert draft OK, sign→signed OK, double-signature bloquée (immuabilité prouvée). Reload pm2 OK, health 200, endpoints 401 sans auth.
+- **RESTE Phase 2** : sélecteur patients-reels (renseigner `patient_id`), stockage HDS du PDF signé (actuellement seul le texte est persisté, le PDF est régénéré à la volée), journal de versions complet. Puis Phase 3 (certificat complémentaire/consolidation + coefficient masticatoire), Phase 4 (notes internes + rappels).
+
+## Session 4 juillet 2026 (2) — CERTIFICAT MÉDICAL DESCRIPTIF (Phase 1) + 2 bugs labo
+Branche `feat/multi-societes`. Module IA Documentaire dentiste-pro. Règle cardinale posée par le fondateur : l'IA structure/reformule UNIQUEMENT la saisie du praticien, ZÉRO invention.
+- **Backend zéro-invention** (`api/ia-doc/index.js`, POST `/generate-certificat`) : system prompt réécrit (faits au conditionnel+guillemets, champ vide = absent, ITT jamais suggérée/calculée, aucune section déductive type « Diagnostic »). Nouveaux champs formatés dans l'ordre médico-légal : examen_exo_buccal, dents_concernees (FDI), examen_clinique (endo-buccal), retentissement, reserves.
+- **Parcours certificat initial** (`public/admin/dentiste-pro.html`, objet `iaDoc`) : sections structurées — identité déclarée, faits rapportés, examen exo-buccal, examen endo-buccal avec ODONTOGRAMME FDI (`window.JADOMI_ODONTOGRAM` mode simple, dents cliquées = concernées, détail par le texte du praticien), examens complémentaires (upload existant), retentissement DESCRIPTIF, ITT optionnelle, réserves, bandeau « Document généré par IA — à relire et valider ». Dictée généralisée `dicterInto(fieldId)` (+ `applyVoice` odontogramme sur dictée endo). Formulaire affiché dès l'ouverture (photos optionnelles).
+- **DISTINCTION CLÉ (fondateur)** : le certificat initial descriptif ≠ le certificat avec coefficient masticatoire. Le coefficient masticatoire (évaluation séquellaire) est réservé au 2e certificat (complémentaire/consolidation, Phase 3), JAMAIS dans l'initial. Le bouton « Insérer dans un certificat » du coefficient sera rebranché vers ce 2e document.
+- **Bugs labo** : `/labo/chat` `headers()` envoie X-Societe-Id (fini « X-Societe-Id requis » en boucle). `/labo/planning` `loadTechnicians` : suppression du fallback `getDemoTechs()` (faux Marie Dupont… → tableau vide honnête ; 404 = profil labo non configuré).
+- Fichiers (4) : `api/ia-doc/index.js`, `public/admin/dentiste-pro.html`, `public/labo/chat.html`, `public/labo/planning.html`.
+- **RESTE** : Phase 2 (Valider et signer → immuabilité lecture seule, journal versions, stockage HDS lié patients-reels, horodatage), Phase 3 (chaîne certificat complémentaire/consolidation immuable + réévaluation coefficient masticatoire), Phase 4 (notes internes non imprimées + rappels de suivi via module Rappels), PDF avec photos en annexes numérotées légendées, en-tête auto depuis profil société (RPPS/ADELI/adresse), sélecteur patients-reels.
+
+## Session 4 juillet 2026 — CONSOLIDATION AUDITS FABLE 5 (R1→R8) + PHASE 9 (débranchage dentiste-pro)
+Branche `feat/multi-societes`. Auditeur navigateur externe (« Fable 5 ») colle des rapports détaillés ; méthode : reproduire en curl / lire le code / vérifier la base AVANT de coder (les audits mislabellent souvent 401→404 et la cause racine). Backups + node -c + pm2 reload respectés.
+- **CACHE (cause racine des « fixes invisibles »)** : `server.js` `express.static(public,{maxAge:'1d'})` ne posait no-cache que sur `.html`, pas les `.js` externes → `tab-agenda.js` figé 24h côté navigateur. FIX : `setHeaders` ajoute `Cache-Control: no-cache` pour `.js`/`.css` (revalidation ETag). C'est ce qui rendait invisibles tous les correctifs frontend.
+- **Comparateur** : le vrai crash `toFixed` était `cmpSearch` INLINE dans `index.html` (pas `comparateur.html`) — gardes `hasPrice`/`isFinite` sur chaque `.toFixed` des offres + `best_price` + widget scan → « Prix indisponible », pas de bouton panier sans prix.
+- **Éjection labo → /organisation** : `production/chat/remakes/garanties/planning.html` lisaient de mauvaises clés localStorage (`sb-access-token`, `labo_session`, `session`, `jadomi_session`) inexistantes → token null → éjection. FIX : `resolveLaboToken()` scanne la VRAIE clé Supabase `sb-<ref>-auth-token` (pattern de `tab-agenda.js getToken()`). Les routes labo n'étaient jamais 404 (401 `missing_token` sans session, `{"error":"Profil requis"}` si profil labo non configuré).
+- **dentiste-pro** : 403 `/team/my-permissions` = rôle réel `proprietaire` non reconnu (le code n'acceptait qu'`owner`/`admin`) → corrigé 3 endroits (`shared.js` requirePermission, `team.js:84` helper manager, `team.js:575` my-permissions) ; le fondateur EST proprietaire sur société c8fe3f0f (Precision Dentaire, cabinet 22227205 existe). Dédup appels today/stats/pipeline via `dashGet` (cache 5s partagé accueil+dashboard). Blocs accueil (Alertes/Activité/RDV) branchés sur `/dashboard/today` réel + états vides.
+- **compta** (`api/compta/index.js`) : badge « ⚠ À vérifier — exclue des totaux » sur écritures >10k (DENTOXCELLENCE), regex homoglyphes durcie (plage `ᤀ-᥿` inclut Tai Le → attrape « Tᥱmᥙ »/« Sephorɑ »), toggle masquer les 0€, accents (« Validées », mois). Analytics `/dentiste` : `eqHeaders()` fallback `localStorage.societe_active_id` + retry → fini le 400 « Société manquante » (le `month` était géré, Fable 5 se trompait de cause).
+- **stock** (`index.html`) : colonne Rythme — le statut périmé PRIME (plus de « 🟢 Optimal » + « ⚠ EXPIRÉ » juxtaposés).
+- **PHASE 9 — débranchage dentiste-pro** (`public/admin/dentiste-pro.html`) : suppression des 8 tableaux `DEMO_*` (Sophie Lefebvre, Robert Blanc…). Rappels→`/dashboard/rappels-today`, Chat list→`/chat/conversations` ; Agenda/Pipeline (via renderScheduleReal/renderPipelineReal), Patients (param réel), Calendrier, Liste d'attente, graphe hebdo + KPIs stats (156/92% en dur → 0) = états vides honnêtes. Preuve : `curl /admin/dentiste-pro` → ZÉRO faux patient dans la source.
+- Fichiers (15) : `server.js`, `index.html`, `public/admin/dentiste-pro.html`, `public/admin/js/tab-agenda.js`, `public/comparateur.html`, `public/labo/{production,chat,remakes,garanties,planning,bons-livraison}.html`, `api/compta/index.js`, `api/dentiste-pro/{dashboard,shared,team}.js`.
+- **RESTE** : chargement des messages chat par conversation, extraction TVA (pipeline IA en amont), mail statut Yahoo « connectée » menteur, dédup rétroactive compta (dry-run à valider + backup), pipeline accents (source ASCII), ticker LEFEVRE (vraie notif patient, décision fondateur), profil labo à configurer par le fondateur pour activer BL/factures.
+
+## Session 2 juillet 2026 — VEILLE JURIDIQUE niveau mondial (anti-hallucination + auto quotidienne + 4 points) + FIX coffre-fort
+Branche `feat/multi-societes`. Déclencheur : l'épouse avocate a vu la veille inventer des arrêts. Testé + en ligne, NE RIEN CASSER respecté (backups, node -c, pm2 reload).
+- **Verrou anti-hallucination FAIL-CLOSED** (`lib/legal-providers/jurisprudence-analyzer.js`) : apport tiré de la RÉPONSE DE LA COUR uniquement, jamais des faits (corrige l'arrêt d'omission de statuer 25-13.725 résumé à tort en requalification CDD) ; juge de fidélité 2e passe + `findInventedCitations` (article absent du texte réel = rejet) ; sinon `metadonnees_seules`. Décision de procédure (art. 1014) → pas d'apport inventé.
+- **Vraie veille automatisée** `scripts/veille-refresh.js` (cron 7h) : Cass. soc. + cours d'appel sociales (`judilibre.js` gère `jurisdiction=ca`), 30 j, dédup, ancré+vérifié, stocké DATÉ (`metadata.decision_date`). `à-retenir` (`home-juridique.js` `getRecentAnchored`) sur du récent + libellé honnête ; cache d'affichage vidé en fin de refresh.
+- **4 points (benchmark Doctrine/Predictice/KeyCite/Shepard's)** : (1) signal de fiabilité/citateur `jurisprudence-citateur.js` (portée B/R/L, postérité « cité par N », visa, rapprochements) sur chaque carte ; (2) alerte email perso `veille-abonnements.js` (store `data/`, endpoints `/abonnement`) + `scripts/veille-digest.js` (digest dédupliqué par arrêt, crons hebdo/quotidien, `VEILLE_DRYRUN`) ; (3) textes Legifrance/JORF `textes-veille.js` (source='loda', endpoint `/textes-recents`, carte UI) ; (4) réseau de citations (visa+rapprochements).
+- **FIX coffre-fort** (`api/avocat/coffre.js`) : `requireAvocat` ne posait pas `req.userEmail` → OTP email sans destination → déverrouillage impossible. Ajout `req.userEmail`/`req.user`.
+- Fichiers : +5 (`jurisprudence-citateur.js`,`veille-abonnements.js`,`textes-veille.js`,`veille-refresh.js`,`veille-digest.js`) ; M `jurisprudence-analyzer.js`,`legal-formateurs.js`,`judilibre.js`,`home-juridique.js`,`coffre.js`,`dashboard-v2.html`. Crons système : refresh + digest hebdo + digest quotidien.
+- EN ATTENTE : MCP Supabase hors-ligne (headless) → abonnements en fichier à migrer vers table `veille_abonnements` ; détection « overruled » réelle (revirement) ; panneau cours d'appel séparé.
+
+## Session 29 juin 2026 — FORMATION AVOCAT niveau AVANCÉ + SIMULATEUR D'INDEMNITÉS « vivant » + onboarding épouse premium
+Branche `feat/multi-societes`. Tout testé + en ligne. NE RIEN CASSER respecté (backups, node -c, pm2 reload, prod HTTP 200).
+- **Enregistreur écran intégré** `public/formation/enregistrer.html` + endpoints `/api/formation/record-chunk|record-finish` (getDisplayMedia→MediaRecorder→upload par morceaux). Code d'accès tolérant casse (jadomi2026).
+- **Module formation niveau AVANCÉ** `private/formation/formation-avance-deficab.html` : 68 slides (PDF→images), oral verbatim Whisper large-v3 ancré par OCR des n° de page (`scripts/avance-ocr-timeline.py` + `avance-inject-oral.py`), fiches, 1 note rouge prouvée (tranche 2 2026 : 35 040 → 32 040 €), copilote. Route gated `/formation/formation-avance-deficab`.
+- **Débutant** passé en VERBATIM intégral (17 blocs, depuis transcripts) + **collapse « Voir tout l'oral »** dans les 2 modules. **Page de choix** `/formation/formations` (2 cartes Débutant/Avancé).
+- **Cerveau assistant ANONYMISÉ** `data/formation-deficab-knowledge.js` (0 mention formateur, enrichi Avancé + exercices chiffrés) ; chaînes scrubbées dans `formation-deficab-ia.js` + `ia-juridique.js`. RÈGLE : ne jamais citer le formateur (risque IP).
+- **SIMULATEUR D'INDEMNITÉS** `public/avocat/simulateur.html` (NEUF) sur `api/avocat/simulateur-indemnites.js` (scrubbé + taux saisissables → coût employeur exact à l'euro, validé exercice 250 000 € ; **mandataire social** ventilation dédiée) : temps réel + 3 curseurs + 2 graphes animés + 15 bulles d'aide + copilote (/api/avocat/ia) + comparateur + **doc client A4 imprimable**. Liens menu dashboard (Outils : Simulateur + Formations) + **assistant IA flottant** bas-droite.
+- **Épouse Louiza Amrane** : mail d'invitation ENVOYÉ (OVH) + **RÈGLE PREMIUM** `api/multiSocietes/societes.js` (bootstrap-cabinet + POST /) : signup reconnu par e-mail OU nom/prénom → plan `illimite` auto.
+
+## Session 28 juin 2026 (soir) — BUILDER : générateur MULTI-PAGES fidèle au template + fixes aperçu
+Commit `7742b72`. Branche `feat/multi-societes`. Tout testé + live www.jadomi.fr.
+**Problème de fond résolu** : le client choisit un template (ex « déroulant multi-pages » expert-scroll) et PAIE la formule, mais le site généré sortait « basique » — `resolveThemeCode` rabattait tous les templates sur 1-2 layouts, et 70+ thèmes n'ont pas de `template.html` (fallback `_base`). Règle fondateur posée : **la formule/le template choisi et payé DOIT être respecté**.
+- **Nouveau thème générable `law_expert_scroll`** = portage fidèle de `public/studio/templates/site-expert-scroll-avocat` (accueil scroll-vidéo GSAP 5 séquences + 6 sous-pages : cabinet, expertises, équipe, résultats, contact, mentions). Fichiers : `templates/themes/law_expert_scroll/{template.html, defaults.json, style-pages.css, pages/*.html}`.
+- **`services/site-generator.js`** : ajout du rendu MULTI-PAGES (rend `pages/*`, copie `css/`) + nouveaux blocs de données au format du thème (`expertises_cards_html` .c, `equipe_cards_html` .tm, `equipe_detail_html`, `nom_court`, `ville`/`ville_suffix`/`ville_phrase` déduits de l'adresse). Le bloc multi-pages ne s'active QUE si le thème a un dossier `pages/` → zéro régression single-page (e2e 9/9 OK).
+- **`server.js`** : `/sites/` et `/sites-staging/` EXEMPTÉS du middleware strip-`.html` (sinon sous-pages = 404) + `express.static(..., {extensions:['html']})`. Backup horodaté fait, node -c + pm2 reload.
+- **`builder.html`** : `resolveThemeCode` mappe `expert-scroll-avocat` + `pro-scroll-avocat` → `law_expert_scroll`. Fixes aperçu : clic upload ne fait plus remonter la page (input fichier `position:fixed`), fallback vidéo illisible (plus d'écran noir), plus de reload aveugle de l'iframe, cibles photo élargies.
+- **PHASE B FAITE (29 juin, commit `9a16f56`) — intake enrichi** : distinction NOM DE LA STRUCTURE (marque + raison sociale) vs NOM DU PRATICIEN (titre Maître/Dr + nom) ; question SOLO/GROUPE avec saisie des associés (Nom — spécialité) → section `equipe` → page Équipe multi-praticiens ; email pro proposé (`contact@cabinet-<nom>.fr`) ; nom « Bahmed » en dur supprimé de `METIER_PROFILES`. Fonctions builder.html : `setExercice`/`finPraticiens`/`askCoordonnees`/`proposEmails`. Vérifié e2e 9/9 (template `law_expert_scroll`, page Équipe = 2 praticiens).
+- **RESTE (bonus, non bloquant)** : porter d'AUTRES templates premium en thèmes générables multi-pages (même méthode que `law_expert_scroll`) pour couvrir tous les métiers/formules (dentaire, prothésiste, paramédical, société).
+
+## Session 28 juin 2026 — BUILDER DE SITE branché de bout en bout (création → staging jadomi → correction IA → OVH)
+Le builder conversationnel (`/studio/mon-site/builder`) était une coquille NON branchée : aucun appel à `/creer` ni `/publier`, `siteData` purement local, aperçu = template démo bidouillé, cul-de-sac final. NE RIEN CASSER respecté (backup builder.html, node -c + new Function sur tout le JS, pm2 reload, prod HTTP 200, aucun fichier intouchable modifié, aucun achat OVH déclenché).
+- **Vision fondateur (validée)** : le client construit → site créé + hébergé D'ABORD sur JADOMI (`jadomi.fr/sites/<slug>`, gratuit, staging) → il teste, si ça bugue il l'écrit à l'IA qui corrige toute seule (en respectant son forfait) → quand IL VALIDE explicitement → boom hébergement OVH automatique (domaine + déploiement). Jamais d'OVH avant validation.
+- **2 systèmes de templates réconciliés** : les templates immersifs (démo, non générables) vs les thèmes du moteur (`templates/themes/*`, pilotés données). Créé **1er template immersif RÉELLEMENT générable** : `templates/themes/law_immersive_parallax/` (template.html à placeholders + defaults.json). Enregistré dans `themes_sites` (métier avocat, tier pro).
+- **Moteur étendu** (`services/site-generator.js`, additif) : support `{{video_hero}}` (depuis `hero.video`), `photo_about`, `logo_initials` (déduit du nom), `telephone_raw` (lien tel:), et **fusion `defaults.json` par thème** (fallback générique quand un champ est vide — réutilisable pour tous les futurs thèmes immersifs).
+- **Backend** (`api/studio/sites-jadomi/index.js`, additif) : `POST /upload-photo-pre` (upload photo AVANT création, miroir de upload-video) + `PUT /:id/section-cle/:cle` (MAJ/création d'une section par sa clé, fusion + régénération auto).
+- **Builder rewiré** (`public/studio/mon-site/builder.html`) : `resolveThemeCode()` (template choisi → thème générable), création réelle du site en fin d'étape Infos (`createRealSite` → POST /creer + lie vidéo/photo au hero + bascule l'aperçu sur le VRAI site `/sites/<slug>/`), `generateTexts` corrigé (404 → `/:id/suggest-text` + persiste services/description), `selectSlogan` persiste + régénère, fix IDs dupliqués des zones d'upload (cause du « rien ne se passe après la vidéo »), upload photos RÉEL.
+- **Étape finale refondue** : `finalizeAndReview` (publie + montre le site staging + 2 choix) ; `applyCorrection` (parse langage naturel → corrige téléphone/email/adresse/slogan via sections + régénère) ; `startHosting`/`checkDomain`/`confirmHosting` (vérif dispo OVH + prix réel → réservation après clic explicite → `migrer-ovh`). `resolveOvhPlan` respecte le forfait (classic/pro/expert).
+- **TESTÉ bout en bout en HTTP réel** (token de session admin via magiclink) : creer 201, section-cle 200, suggest-text 200 (3 prop.), publier 200, **check-domain 200 mode LIVE dispo 4,99€ (vraie API OVH)**, page staging 200 avec nom+vidéo injectés, accès public https://jadomi.fr/sites/... 200. Scripts de régression : `scripts/test-immersive-gen.js` + `scripts/test-builder-e2e.js`.
+- **Sites démo en ligne** : https://jadomi.fr/sites/test-immersif-mqy9e9cz/ et /sites/cabinet-e2e-test-mqy9mawe/
+- **RESTE** : (1) rendre génératables les AUTRES templates immersifs (3D, walkthrough, scroll) + métiers (dentiste/prothésiste) sur le même schéma defaults.json ; (2) IA de correction PLUS autonome (au-delà du parsing par mots-clés : comprendre une demande libre et éditer n'importe quelle section/couleur/section entière) ; (3) gating réel des modules par forfait dans le builder ; (4) déploiement OVH effectif à tester en vrai (non déclenché : argent réel).
+
+## Session 26 juin 2026 — JADOMI ON-PREMISE : orchestrateur + mesh WireGuard + agent .exe (RÉEL bout en bout)
+Construction de l'infrastructure IA souveraine « se greffer au GPU du cabinet ». NE RIEN CASSER respecté (backups server.js, node -c, pm2 reload ; prod HTTP 200 tout du long).
+- **Orchestrateur de nœuds** (`lib/onprem/node-registry.js` + `config/onprem-nodes.json`, NEUFS) : registre + santé + routage « nœud le + proche capable ». 3 niveaux de confiance par sensibilité (`dataClass`) : sensible→France/cabinet only, business→exclut la Chine, public→tous. Cascade France→Mistral(UE)→Claude(US)→DeepSeek(CN). Routage MULTI-RTX « carte libre » (heartbeat push : moins de jobs + plus de VRAM libre, TTL 90s). Souveraineté = propriété de l'archi, plus un if.
+- **Câblé dans la compta** : `analyserDocumentIA` (server.js) consulte l'orchestrateur (vision/business) ; `analyserDocumentLocal(.,.,ollamaUrl)` + `ollamaGenerate({baseUrl})` (additif, défaut localhost = zéro impact). Repli sûr historique. Comportement identique aujourd'hui, prêt pour les RTX.
+- **Page confidentielle** `/admin/onprem` (`private-pages/onprem-nodes.html`, HORS public/, portail mot de passe fondateur GATE_COOKIE) + endpoint `/api/onprem/nodes` gardé. Bouton « Générer un code ».
+- **Mesh WireGuard RÉEL** : serveur OVH 217.182.132.136:51820, sous-réseau 10.10.0.0/24, `wg-quick@wg0` permanent, UFW 51820/udp. Pont root `scripts/jadomi-agent` → `/usr/local/bin/jadomi-wg-peer.sh` (sudoers limité, anti-injection, add/remove/list IP). Enrôlement auto : `POST /api/onprem/enroll-token` (fondateur) + `/api/onprem/enroll` (agent : code+pubkey→peer créé→config renvoyée) + `/api/onprem/heartbeat` (auth = source mesh 10.10.0.x).
+- **Agent Windows .exe AUTO-CONSTRUIT** : repo privé `github.com/karimstock/jadomi-agent` (build GitHub Actions windows-latest + ps2exe = « Codemagic pour Windows »). `install-jadomi-agent.ps1` tout-en-un : auto-détecte GPU, WireGuard+Ollama (winget), enrôle, monte tunnel, pare-feu mesh-only, heartbeat planifié, modèle dimensionné à la VRAM.
+- **TESTÉ EN RÉEL sur la RTX 2070 du fondateur** : 7 étapes OK, tunnel handshake (mesh 10.10.0.3), serveur atteint l'Ollama du cabinet via le tunnel, **inférence réelle pilotée depuis le serveur : 95 tokens/s sur le GPU** (moondream). Modèle puissant qwen2.5vl en téléchargement.
+- **BUGS corrigés** : v1 fermait la fenêtre sans montrer l'erreur (try/catch+pause) ; ordre revu (tunnel/RTX d'abord) ; chemins Ollama complets. **BUG connu à corriger** : `OLLAMA_HOST=0.0.0.0` casse `ollama pull` côté client Windows (contourné en pilotant le pull depuis le serveur). HEARTBEAT Windows n'apparaît pas encore dans l'orchestrateur (piste : registerNode à l'enrôlement).
+- Détails complets : mémoires `project_jadomi_onpremise` + `feedback_onprem_zero_connaissance`.
+
+## Session 24 juin 2026 — Compta : import réparé + justificatifs auto + analyse LOCALE souveraine
+- **BUG IMPORT FACTURE (photo/PDF) réparé à 3 couches** (commit 02a269b) : (1) `missing_token` — le front n'envoyait pas de token sur `/api/analyser-document` + `/api/valider-document` → helper `pcAuthHeaders()` + `await _getFreshToken()`. (2) `Erreur serveur` — `valider-document` insérait avec le client ANON (bloqué RLS) → service-role (`supabaseAdmin`/`dbW`). (3) « sans fichier » — fichier d'origine pas stocké → upload bucket `documents-compta` + `storage_path`. Anti-doublon rétroactif (ré-import rattache le PDF).
+- **RÉCUPÉRATION AUTO DES JUSTIFICATIFS** (commits 02a269b, b8807e6) : `POST /api/compta/recuperer-justificatifs` + `/etat` + bouton « 🔎 Récupérer les justificatifs manquants ». Retrouve dans les mails (Outlook/Yahoo/Gmail/IMAP) le PDF joint OU le corps HTML (capture AliExpress/Amazon) de chaque facture sans fichier. Matching pur souverain (PAS de Claude). Arrière-plan (`_recupererJustificatifsBg`) + progression. **CRON quotidien 03h40 Europe/Paris** (`_sweepJustificatifsQuotidien`). ANTI-PUB (retour fondateur) : signal transactionnel obligatoire (montant exact/PDF/mots commande) + rejet pub ; marchand bruyant (>6 mails) = montant exigé, unique = 1 mail transac suffit ; montants à séparateurs de milliers. **Résultat réel : 175/188 factures avec justificatif.** Respecte les règles perso. Script ref `scripts/_run_recup_justif.js`.
+- **ANALYSE FACTURE LOCALE D'ABORD** (commit 2a28117) : `analyserDocumentIA` route vers `qwen3.6:35b-a3b` (VISION, sur jadomi-srv) d'abord = GRATUIT + souverain ; Claude (Sonnet) en MODE SECOURS si incomplet (`_analyseExploitable`). `analyserDocumentLocal` (image→qwen vision, PDF→pdf-parse+qwen). `ollamaGenerate` (lib/ia-router.js) accepte `options.images`. **Supprime le risque de coût incontrôlé** (secrétaire 1000 factures = ~0€). NB lien secrétaire (compta-snap) n'utilise DÉJÀ aucune IA.
+- **BUG LIEN SECRÉTAIRE** (commit 0e6dbbd) : bloqué sur « Envoi » = photo iPhone HEIC trop lourde sur réseau mobile (backend OK en 0,5s). Fix `public/capture-facture` : compression photo CLIENT (canvas→JPEG 1600px, ~10Mo→300Ko) + timeout 90s.
+- ⚠️ Découverte : `qwen3.6:35b-a3b` EST multimodal (vision), testé (ancienne note « texte seul » fausse). Voir mémoires project_compta_mail_rapprochement, project_jadomi_onpremise, feedback_rib_verite_pro_perso.
+
+## Session 23 juin 2026 — Boucle « module parfait » + audit compta soldé (25 défauts)
+- **BOUCLE RÉUTILISABLE construite** : `scripts/workflows/loop-module-parfait.js` (orchestration multi-agents : Mémoire → Audit 7 axes → Verify adversarial → Synthèse → Build worktree → Review → Test E2E → Apprend) + `scripts/_e2e_compta.js` (test e2e SOUVERAIN, n'imprime que des agrégats, jamais de donnée bancaire). Branchée sur la mémoire Supabase DÉJÀ existante (`jadomi_task_queue`, `jadomi_learnings`, `cabinet_brain_rules`, lib/boss/). Paramétrable (mode audit/fix/full/e2e + target). Voir mémoire project_boucle_module_parfait.
+- **AUDIT COMPTA soldé** : 25 défauts confirmés (0 CRITICAL, 3 HIGH, 15 MEDIUM, 7 LOW), TOUS corrigés/vérifiés/déployés en 4 commits (da02c41, 04a7f20, 9e6c24f, cdd1ce4). Chaque lot : reviewer adversarial PASS + node -c + e2e PASS + pm2 reload OK. Faits : 3 HIGH (récap annuel mort = 6 fonctions front sans token/X-Societe-Id, import mail silencieux, rescan IMAP avorté → try/catch par lot) ; cloisonnement multi-société (7 routes + 2 inserts filtrent societe_id, 10 docs legacy NULL rattachés à Precision Dentaire AVANT déploiement) ; LOW (DoS upload compta-snap, lien secrétaire révocable, next_numero NaN, attacher-facture refuse crédit, HT sans TVA = franchise, retry IMAP, fenêtre +45j bornée, bug `.insert().catch()` → `.then(ok,err)` dans mail-sync-daemon).
+- RÈGLE IMAP confirmée : TOUTE boucle `for await (client.fetch(batch))` doit être en try/catch par lot (Command failed transitoire). PIÈGE cloisonnement : vérifier `WHERE societe_id IS NULL` AVANT d'ajouter un filtre strict (sinon docs invisibles). Fichiers : server.js, index.html, api/compta/index.js, api/compta-snap/index.js, api/brain/mail-copilot.js, lib/brain/mail-sync-daemon.js. Voir mémoire project_compta_mail_rapprochement.
+
+## Session 22 juin 2026 — Consolidation compta (bugs racine + récup PDF + auth)
+- **BUG RACINE IMAP** : `client.search()` renvoie des n° de SÉQUENCE mais le code faisait `fetch(..., {uid:true})` -> `parsed=null` partout -> AUCUNE facture jamais lue (Yahoo). Corrigé (search `{uid:true}`) dans retrouver-factures + mail-copilot fetchRecentMails. La recherche de factures marche ENFIN.
+- **Snapshot figé rejoué au CHARGEMENT** (GET /api/compta-releves) : règles apprises (`_comptaChargerRegles`), rapprochement factures DB (`_comptaRematch`), loyers SCI/quittances (`_comptaReappliquerLoyers`) ré-appliqués à la lecture (avant : « la règle tient pas »). Throttle 1x/45s (perf). RE-ANALYSE préserve le travail manuel (fusion par date+montant+libellé).
+- **Garde-fou mois** : le mois d'un relevé = MOIS DOMINANT des vraies dates (jamais le parser) -> impossible de ranger mars sous février (incident corrigé, faux 2026-02 supprimé, vrai février ré-uploadé = 123 op.). **Relevés PDF ARCHIVÉS** en local France (`uploads/releves-pdf/`, GET /api/compta-releve/:periode/pdf, bouton 📄 Relevé PDF) pour le comptable.
+- **Reçus dans le CORPS du mail -> PDF** : le scan stocke le corps HTML (rapide), PDF généré À LA DEMANDE au clic (puppeteer `lib/html-to-pdf`, cache) + conversion fond `_rendrePdfRecusEnAttente` (auto après scan + bouton « 📄 Reçus → PDF »). **Récup script** `scripts/_recup_pdf_factures.js` : 50 PDF récupérés ; 5 vides écartés -> **99 PDF valides** sur 104. **ZIP** « 📦 Toutes les factures (PDF) » (GET /api/compta/factures-zip, archiver).
+- **Factures visibles** : onglet Factures alignée sur `pcSocieteId()` (même société que Relevé, fini « je vois rien »). Badge **📄 PDF / — sans fichier** par ligne. **PayPal propose+confirme** : GET /propositions (factures même montant) + POST /attacher-facture (confirmation, anti-couac). **Pro sans facture + note** (modale, justifie_sans_facture, + règle permanente tag `sans_facture`). **Onglet Démo** (`lib/demo-societes`, sociétés démo séparées, exclues du routage). **Scan mensuel borné** (before) -> fini « décembre 2025 sort juin 2026 ».
+- **AUTH RACINE** (`api/multiSocietes/middleware.js`) : `authSupabase` + `requireSociete` lisent le token ET la société en QUERY (`?access_token=&societe_id=`) -> ouvrir un PDF/ZIP dans un onglet marche (fini missing_token / societe_id_manquant). nginx : timeout 900s sur endpoints de scan ; SSE scan-progress avec token en query.
+- RESTE (validé fondateur) : consolidation archi = 1 seul système de factures (documents_compta vs cabinet_brain_documents) + scans ASYNC (ne plus tenir une requête 15 min) + bloquer capture emails de contestation/litige + récup des ~36 factures encore sans fichier. Fichiers : server.js, index.html, api/multiSocietes/middleware.js, api/compta/index.js, api/compta-snap/index.js, lib/html-to-pdf.js, lib/demo-societes.js, scripts/_recup_pdf_factures.js. Voir mémoire project_compta_mail_rapprochement.
+
+## Session 21 juin 2026 — Capture factures mail + rapprochement RIB fiable + mode secrétaire
+- **Connexion boîtes mail** : Gmail/Yahoo en mot de passe d'application (OAuth scope restreint = audit CASA trop cher), Outlook OAuth. Détection auto fournisseur + aide cliquable (index.html).
+- **Capture factures par mail — 5 bugs corrigés** (server.js scan-intelligent) : Gmail = scanner [Gmail]/All Mail (archivage), factures EN (invoice/receipt/payment), reçus de paiement = justificatifs, Outlook fetch par paquets (Command failed sur gros volume), corps HTML-only. Ajout plage de dates (since), anti-doublon par contenu (date+montant+fournisseur), routage société (routerSoc), petite boîte = tous les corps. 147 factures captées déc.2025→juin.
+- **Rapprochement RIB ↔ factures** : COMBO montant ET nom obligatoire (évite collisions type EDF→hôtel). POST /api/compta-releve/rematch (calcul pur LOCAL, zéro Claude) + bouton "Rapprocher mes factures". retrouver-factures : recherche from→subject→corps→montant. 212/464 lignes rapprochées (relevés janv→mai), 100% confirmées.
+- **Mode secrétaire** (api/compta-snap + public/capture-facture) : liens permanents (uploads/scan-links.json, pas de table SQL), page isolée = liste des factures manquantes uniquement → photo multipage + société par facture + match direct. Boutons Compta→Import "QR Téléphone" + "👩‍💼 Lien secrétaire". Zéro accès relevés/dashboard.
+- Relevés analysés 100% LOCAL (parser/Ollama), jamais Claude. Fichiers : server.js, index.html, api/compta-snap/index.js, public/capture-facture/index.html, scripts/_backfill_dec2025.js, _rematch_releves.js, _search_orphans.js.
+
+## Session 20 juin 2026 (soir) — UI cartes mois + detection recurrentes + perso/pro + badge rapproche
+- **UI relevés refondue** (index.html) : fini le mur de donnees -> **cartes mois par mois** (pcRenderMoisCards) cliquables, clic -> detail (pcRenderReleveDetail) : bandeau fiabilite, Recettes/Depenses/vir.internes, lignes orphelines 🔴 "A traiter" avec boutons **Perso / Pro+charger facture / 📷 QR**, listes Entrees/Sorties repliables. _releveData global.
+- **Detection auto charges recurrentes** : bouton "🔁 Détecter mes charges récurrentes" (si >=2 mois) -> pcDetectRecurrentes scanne tous les mois, groupe par libelle normalise (pcNormLib, retire PRLV/SEPA/VIR..., garde 3 mots), garde ce qui revient >=3 mois, montant median (ou "variable" si ecart >15%). Panneau avec cases + menu **Pro/Perso** par ligne -> pcRegisterRecurrentes POST /api/compta/charges-recurrentes. Serveur matchRecurrente : comparaison "squash" (ignore espaces/tirets) pour matcher "MACSF-ASSU-" avec mot-cle "macsf assu".
+- **Recurrente PERSO** (ex VIR SEPA AMRANE NASSIM 450 = famille du fondateur) : categorie 'perso' -> sous_type='perso'. matchRecurrente -> transaction professionnel=false (reconnue donc PAS d'alerte, mais classee perso non deductible, comptee dans total_perso, signalee au comptable). 
+- **Badge "Vérifié au relevé"** : analyse-releve persiste `rapproche=true` sur les factures matchees (documents_compta) -> Mes Factures affiche le badge (corrige : teste `doc.rapproche` boolean, plus `doc.rapprochement`). deviseBadge deja present (USD/DZD).
+- Recurrentes claires reperees sur 5 mois CIC : LK Immo, EDF, SFR, Free, MACSF(x3), URSSAF(x2), TGS, AG2R, Doctolib, GG Capital, MDA HE, Salaire Nadia Aouidj, Euro-Information, + fournisseurs dentaires (Technident/Prothexpert/Straumann/DPI/Dentalevolution). Amrane Nassim = PERSO.
+
+## Session 20 juin 2026 (apres-midi) — LECTEUR RELEVES DETERMINISTE + devises + perso/pro
+- **BUG releves CIC** : l'analyse via Ollama renvoyait `{"` (vide) sur un vrai releve (22k car) -> JSON.parse echec -> erreur "pas pu etre lu". Ollama+format:json flanche sur gros texte. ROOT CAUSE trouvee en recuperant un releve depuis la boite mail du fondateur (il se les etait auto-envoyes : sujets "Relever janvier/fev").
+- **SOLUTION : parseur DETERMINISTE `lib/releve-parser.js`** (`parseReleveCIC`). Lit les colonnes par POSITION (pdfjs transform x) : Debit (x~409-444) vs Credit (x~480-503), seuil dynamique via en-tetes "Debit/Credit EUROS" (ancrage `^` strict pour ne pas matcher "CREDITEUR"). ZERO IA, zero hallucination, montants exacts. **VERIFICATION par le solde** : solde_debut + credits - debits == solde_fin (janvier ET fevrier : EQUILIBRE au centime = preuve que toutes les lignes sont lues). Categorisation par mots-cles (CPAM=recette, EDF=charge...). "VIR VIREMENT INTERNE" = `mouvement_interne` (neutre, exclu du CA).
+- **Endpoint `/api/analyser-releve` (server.js ~7166)** : voie 1 = parseur deterministe ; voie 2 (secours, format inconnu) = Ollama local. Bug "Cannot set headers" corrige (returns propres). Reponse enrichie : source, fiable, equilibre, solde_debut/fin, total_recettes, total_depenses, mouvements_internes, chiffre_affaires, depenses_reelles. Le releve N'EST PAS stocke sur disque (donnee sensible, traitement memoire). Front (index.html pcRenderReleve) : bandeau "Lecture exacte verifiee" + cases Recettes/Depenses/vir.internes/Sans facture.
+- **DEVISES (demande fondateur)** : detection + conversion EUR. USD : Anthropic x4 + Supabase convertis au taux BCE (frankfurter.dev) de la date (colonnes devise_originale/montant_original/taux_conversion/converti). SIFA = EUR en fait (USD = juste le RIB). DZD : formation DENTOXCELLENCE 150000 DZD payee especes = ~977 EUR (taux open-er-api 153.58, BCE ne cote pas le dinar) -> doc 52 corrige (etait 276 EUR errone, scan image mal lu). Jasper = EUR (laisse).
+- **DANGER scans image** : factures photo lues a l'aveugle = montant faux (276 au lieu de 977). 14/66 factures marquees `tags:['a_verifier']` (scan image / HTML sans vrai PDF / sans PDF) -> montant non fiable, jamais fondu dans le total. Principe : JADOMI prepare, l'expert-comptable certifie ; le rapprochement bancaire = verite de ce qui est paye.
+- **Vision dossier comptable** (voir memoire project_dossier_comptable) : relevés par mois, perso/pro sur lignes orphelines (matchee=pro auto), QR photo facture (bonus), export 1 clic au comptable (factures+relevés+Madelin+SNIR/URSSAF). Scan mail = coeur ("topissime"). RESTE A FAIRE : boutons perso/pro + signalement perso, rangement par mois, export comptable, QR photo.
+
+## Session 20 juin 2026 — Verification backfill + fix liasse fiscale + completion 0 EUR
+- **RESULTAT BACKFILL (19 juin soir)** : 17 factures importees / 100 analysees, source `rescan_mail`. Rapport `/tmp/backfill-report.json`. Constat cle : TOUS les mails `has_pdf=true` de `mails_inbox` datent de mai/juin 2026 (117, dont 116 deja `compta_done`, 1 restant) -> le re-scan ne peut PAS retrouver les factures aout 2025->avril 2026 (elles viennent de l'ancien systeme `documents_compta`, jamais presentes comme mails). Re-scan donc termine.
+- **BUG MAJEUR corrige — liasse fiscale comptee en charge** : doc `documents_compta` id **248 = CEPROX, 24574 EUR, type "autre"**, importe par le re-scan. Verifie via Claude sur le PDF : c'est une **liasse fiscale BNC (formulaire 2035-SD)** emise par le cabinet comptable CEPROX pour Me AMRANE (epouse du fondateur, activite juridique Roubaix), exercice 2025. Les 24574 EUR = RECETTES/CA, PAS une charge du cabinet dentaire. Reclasse `type_document='liasse_fiscale'` (montant conserve pour tracabilite, backup `backups/doc248-CEPROX-liasse-*.json`).
+- **Exclusion code** (`api/compta/index.js`) : ajout `NON_CHARGE_TYPES = ['devis','liasse_fiscale','bilan','bilan_comptable']` -> remplace les 3 filtres `!== 'devis'` (loadDocsComptaEntries, /entries, /summary). `isNonComptable` renforce : detecte liasse fiscale / bilan / declaration de resultat / 2035-SD / 2031 / 2065 / 2050 / BNC. Garde-fou aussi dans le re-scan live (`api/brain/mail-copilot.js`) : prompt + type `liasse_fiscale`, guard `NON_CHARGE`. node -c OK, pm2 reload OK.
+- **Completion factures 0 EUR** : re-extraction IA depuis PDF en bucket (script `scripts/_reextract_zero.js`, backup `backups/reextract-zero-*.json`). 4 corrigees : Apple 99 EUR, Hotel Pastel 312,86 EUR, PROTHEXPERT 2669,22 EUR, Verisure 89,48 EUR. **OVH + Free = pas de vrai PDF** (entete `<!doctype`, l'email ne contenait qu'un lien -> page HTML stockee) -> a recuperer manuellement depuis l'espace client.
+- **POINT COMPTA REEL (apres fix)** : 71 docs comptes (1 exclu = CEPROX). **TOTAL CHARGES CABINET = 37615,61 EUR TTC** (etait 62189 avec la liasse). Mai 2026 retombe de 26368 a 1794,80 EUR. Restent 6 docs a 0 EUR (OVH/Free/Information Dentaire/SIFA/2x Verisure) + 6 sans PDF + 7 sans date.
+- **POINTEUSE / rapprochement bancaire — OUTIL RENFORCE + 100% LOCAL (souverainete donnees)** : le fondateur charge ses releves PDF via la plateforme (bouton "Analyser mon releve bancaire PDF", onglet Comptabilite > Releve bancaire, index.html). Endpoint `POST /api/analyser-releve` (server.js ~7166).
+  - **SECURITE / RGPD (demande explicite du fondateur 20 juin)** : un releve bancaire est une donnee hautement sensible (secret bancaire, donnees de l'epouse). Il ne doit JAMAIS partir chez un sous-traitant etranger (Anthropic USA). -> L'extraction des transactions se fait desormais EXCLUSIVEMENT par le modele LOCAL Ollama (`iaRouter.ollamaGenerate`, qwen3.6:35b-a3b sur 127.0.0.1:11434, serveur dedie OVH France). AUCUNE donnee bancaire ne sort du serveur. pdf-parse local pour le texte. En cas d'indispo Ollama -> 503 explicite (rien n'est envoye ailleurs en fallback). `lib/ia-router.js` : ajout support `options.num_ctx` (relevé long, sinon Ollama plafonne ~4096 tok). Backup `backups/ia-router.js.bak-*`.
+  - **Qualite matching** : (1) transaction<->facture par SCORE (montant tolerance serree 2%/1 EUR + bonus date <=5j + fournisseur normalise sans accents) au lieu de l'ancien "premier doc a +/-10 EUR"; (2) exclut les docs NON_CHARGE (liasse/bilan/devis); (3) NOUVEAU sens inverse `factures_sans_prelevement` (factures de la periode du releve non retrouvees comme prelevement) + bloc d'affichage front. Lecture seule, ne persiste rien.
+  - **Teste bout-en-bout en local** (scripts/_test_e2e_releve.js) : faux releve -> 6/6 transactions extraites (~33 s), smsmode 49 EUR correctement signale "SANS FACTURE", EDF/PROTHEXPERT/LK Immo/Apple rapproches. node -c OK (server.js + ia-router.js), pm2 reload OK. Backup `backups/server.js.bak-20260620_084239`.
+  - NB souverainete : le RE-SCAN des factures fournisseurs (PDF) utilise encore Claude (mail-copilot.js + scripts/_backfill-compta.js) — moins sensible (docs commerciaux) mais a basculer en local aussi si le fondateur le souhaite (limite : qwen local = texte seul, pas de vision pour PDF scannes images). EN ATTENTE : le fondateur depose ses releves.
+- **CHARGES RECURRENTES reconnues (demande fondateur 20 juin)** : LK Immo = SCI du fondateur, il EDITE lui-meme les factures de loyer (3000 EUR/mois) -> n'arrivent pas par mail. Pour que la pointeuse ne les signale pas en "facture manquante" : systeme de charges recurrentes. Stockees dans `documents_compta` (type `charge_recurrente`, source `recurrente`, date null, `tags`=mots-cles, total_ttc=montant attendu) -> AJOUTE a NON_CHARGE_TYPES (exclu des totaux de charges). CRUD : `GET/POST/DELETE /api/compta/charges-recurrentes` (api/compta/index.js). Dans `/api/analyser-releve` : si un debit ne matche aucune facture MAIS matche une charge recurrente (mot-cle dans libelle + montant a +/-5% si defini) -> statut `recurrent` (badge bleu "RÉCURRENT", PAS d'anomalie). Front : rendu badge + sous-libelle. Seed LK Immo 3000 EUR fait (id 249, scripts/_seed_recurrente_lkimmo.js). Teste (scripts/_test_recurrent.js) : LK Immo reconnu sans facture, 3500 EUR rejete (loyer anormal flague), smsmode reste anomalie. Le fondateur peut ajouter OVH/Free/assurances (endpoint POST, ou je les seed). node -c OK, pm2 reload OK.
+- **UPLOAD MULTI-RELEVES (20 juin)** : le fondateur a janvier->mai, doit pouvoir charger PLUSIEURS fichiers. `pcComptaUploadReleve` passe en `multiple=true` ; nouvelle fonction `pcComptaAnalyseReleves(files)` boucle et analyse chaque PDF en local l'un apres l'autre (~30 s/releve), affichage par fichier (entete nom + periode) + compteur. `pcRenderReleve(data)` factorise le rendu (ajout case "Récurrents" dans la grille stats). Bouton renomme "Analyser mes relevés bancaires PDF" + mention multi-fichiers. index.html uniquement (servi du disque, pas de reload). JS valide (new Function).
+- Scripts diagnostic ajoutes dans `scripts/` : `_point_compta.js`, `_point_final.js`, `_reste_rescan.js`, `_gros_montants.js`, `_chercher_bilans.js`, `_inspect_doc.js`, `_diag_pdf.js`, `_reextract_zero.js`, `_fix_doc248.js`.
+
+## Session 19 juin 2026 (soir) — REFONTE COMPTABILITÉ cabinet (/dentiste = index.html)
+Le fondateur signale : compta "vide / tout disparu". Diagnostic + refonte complète.
+- **CAUSE RACINE données** : la compta du cabinet (factures, comptes mail) était étiquetée `societe_id` = **DENTALEVOLUTION** (c2e2b1a1) au lieu de **Precision Dentaire** (c8fe3f0f). RAPATRIÉ via UPDATE (script node + service role) : 3 comptes mail + 218 cabinet_brain_documents + 1 event + 10 262 mails_inbox -> Precision Dentaire. Backup réversible : `backups/societe-repatriation-*.json`.
+- **DEUX SYSTÈMES COMPTA EN PARALLÈLE** (découverte clé) :
+  - `documents_compta` (clé **user_id**, PAS societe_id) : 55 docs, **49 avec PDF** (bucket storage `documents-compta`), montants justes, bien catégorisés (août 2025 -> avril 2026). C'est le système FONCTIONNEL d'origine.
+  - `cabinet_brain_documents` (clé societe_id) : 218 entrées auto-scan mai-juin 2026, **texte seul, montants souvent 0, sans PDF**.
+  - -> `/api/compta/entries` + `/summary` UNIFIENT les 2 (dedupeEntries par date+montant+fournisseur, garde la version AVEC PDF). Filtre non-comptable (invitations/pubs/newsletters). Exclusion devis. Calcul HT (TTC-TVA ou /1.2). parseMontant récupère le montant du texte si dispo.
+- **UI compta** (index.html) : onglet "Comptabilité" direct (plus d'accordéon "compta>compta"), hub en **cards** (Importer/Mes Factures/Relevé annuel/TVA/Relevé bancaire), Fournisseurs+Économies déplacés dans Achats. "Mes Factures" : lit `by_day`, **groupé par mois**, période défaut = Année. Fiche détail premium : **Ouvrir le PDF** (fetch /api/compta/document/:id/pdf), Valider, **Supprimer** (DELETE documents_compta OU reject cabinet_brain). 
+- **BUG fix** : `window.jadomiMultiSocietes?.societeId` (jamais défini) remplacé par `.active?.id || localStorage('societe_active_id')` partout (faisait X-Societe-Id vide -> compta vide).
+- **RE-SCAN factures FONCTIONNEL** : `POST /api/brain/mail/rescan-compta` (mail-copilot.js). Cible `has_pdf=true` (117 vrais PDF, pas le junk classé "facture"). Matche par **message_id** (le `mail_uid` stocké est un HASH, PAS un vrai UID IMAP -> fetch UID échoue). Télécharge PDF -> upload bucket -> extraction Claude (`type:document` base64 pdf) montant/date/fournisseur -> insert documents_compta. Marque `financial_type=compta_done` (anti-boucle). TESTÉ : EDF -> 333,04 € extrait du vrai PDF. Bouton "Re-scanner mes factures" (Importer) + boucle front multi-comptes. Backfill serveur lancé (script `scripts/_backfill-compta.js`, envoie rapport mail).
+- **Litige smsmode** : facturé mai 2026 alors que résilié 08/01/2025 (confirmé par eux le 09/01). Mail de contestation **ENVOYÉ** depuis karim_bahmed@yahoo.fr -> facturation-client@smsmode.com (SMTP yahoo, mot de passe app déchiffré). RÈGLE rappelée : jamais envoyer sans OK explicite du fondateur (respecté).
+- **PROCHAINE ÉTAPE demandée** : le fondateur enverra ses RIB -> "pointeuse" (rapprochement bancaire + détection factures manquantes).
+- Fichiers : api/compta/index.js, api/brain/mail-copilot.js, index.html. Commits : 47c20f9, 87f41c9, 9236a0b, + fixes compta.
+
+## Session 19 juin 2026 — Passeports patient multi-types + Coefficient masticatoire
+Module dentiste (onglets jadomi-ia + ia-doc). 4 livrables demandes par le fondateur.
+- **Archi passeports par type (fix)** : la page `public/documents/passeport-blanchiment.html`
+  est en realite le passeport GENERIQUE type-aware. `tab-jadomi-ia.js` ouvrait la vraie page
+  seulement pour blanchiment -> desormais pour TOUS les types (handoff localStorage). Libelles
+  ajoutes pour implant/orthodontie/facettes/rehabilitation. `/p/:token` etait deja generique.
+- **Passeport implantaire** : carte d'implant structuree (marque, systeme, reference, Ø, longueur,
+  lot, torque, position FDI, pilier, date). Stockee dans `cas_cliniques.metadata.implants[]`
+  (JSONB, AUCUNE migration — MCP Supabase non dispo cette session). Route `POST /api/cas-clinique/:id/implants`
+  (recalcul/sanitize serveur, read-modify-write preservant public_token). Exposee au patient dans
+  `/public/:token` (dispositif medical implantable = tracabilite, IRM, soins futurs). Editeur dans
+  `tab-jadomi-ia.js` (setupImplants) + rendu carte dans la page passeport.
+- **Passeport ODF** : resume orthodontie (appareil, phase, date debut, contention) dans
+  `metadata.odf`. Route `POST /:id/odf`. Section dediee patient + mise en avant contention.
+- **Coefficient masticatoire** : NOUVEAU. Module `public/admin/js/coefficient-masticatoire.js`
+  (odontogramme FDI cliquable, barème OFFICIEL docudent.fr : maxillaire 2/1/4/3/3/5/5/2,
+  mandibule 1/1/4/3/3/5/5/3 par quadrant = 25, total 100 ; regle de l'antagoniste : une dent ne
+  compte que si elle ET son antagoniste sont fonctionnels ; option exclure dents de sagesse avec
+  renormalisation). Recalcul SERVEUR dans `api/ia-doc` + route `POST /coefficient-masticatoire-pdf`
+  (pdfkit). Carte + zone dans l'onglet ia-doc de `dentiste-pro.html`. Bouton "Inserer dans un
+  certificat" (pre-remplit l'examen clinique — pipeline certificat existant intact).
+- NB : le CERTIFICAT MEDICAL DESCRIPTIF existait deja (`api/ia-doc` POST /generate-certificat, pdfkit + photos).
+- Verifie : node --check tous fichiers, new Function() scripts inline OK, pm2 reload OK, routes 401 sans auth, calcul teste (100% denture complete, 11,1% perte pour 1ere molaire absente, 0% edente total). Backups .bak-* horodates.
+- Fichiers : api/cas-clinique/index.js, api/ia-doc/index.js, public/admin/js/tab-jadomi-ia.js,
+  public/admin/js/coefficient-masticatoire.js (nouveau), public/documents/passeport-blanchiment.html, public/admin/dentiste-pro.html.
 
 ## Passes 1-13 (avant 21 avril 2026) -- Fondations
 Stock, GPO, SOS, Green, Compta, Scanner, Mailing, multi-societes,
@@ -2365,6 +2628,17 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 - [x] Video integree sur page vitrine prothesistes (Passe 70)
 - [x] Section tournees 8 etapes sur vitrine prothesistes (Passe 70)
 - [x] Bypass feature gate pour fondateur (Passe 70)
+- [x] Compta : rapprochement bancaire affiche DANS la fiche facture (25 juillet)
+- [x] Compta : relier/delier a la main une facture a une ligne de releve (25 juillet)
+- [x] Compta : une facture ne peut plus justifier deux prelevements (25 juillet)
+- [x] Compta : propositions de factures au CENTIME PRES sur un prelevement orphelin (25 juillet)
+- [x] Compta : les factures du scan mail entrent enfin dans le rapprochement (25 juillet)
+- [x] Compta : etat « a verifier » en orange + confirmation par le praticien (25 juillet)
+- [x] Compta : moteur de rapprochement multi-yeux + memoire des libelles (25 juillet)
+- [x] Compta : file de validation « Pistes de rapprochement » (25 juillet)
+- [ ] Compta : dernier trou justificatif Uber One 5,99 € (tout petits recus HTML sans numero)
+- [ ] Compta : dedup RETROACTIVE des doublons en base (dry-run a valider, destructif)
+- [ ] Pousser la branche feat/multi-societes proprement
 
 ## Moyen terme (1 mois)
 - [ ] 5 clients beta payants identifies
@@ -2399,12 +2673,31 @@ le matching si necessaire. Ne JAMAIS laisser un script tourner pour rien.
 # 10. BUGS CONNUS & TODO
 ===============================================================
 
+## Résolus — Session 25 juillet (compta, rapprochement)
+- ~~Depuis une facture, impossible de savoir si elle avait ete payee (le lien n'existait que dans le releve)~~ [CORRIGE — bloc « Rapprochement bancaire » dans la fiche facture]
+- ~~Un rapprochement automatique faux ne pouvait pas etre corrige~~ [CORRIGE — lier a une autre ligne / delier, le lien manuel fait autorite]
+- ~~Une meme facture pouvait etre accrochee a DEUX prelevements (dedup limitee au fichier en cours)~~ [CORRIGE — pre-passe tous mois dans `_comptaRematch`]
+- ~~Une facture deliee a la main etait recollee au chargement suivant~~ [CORRIGE — `rapprochement_refuse`, survit meme a une re-analyse du mois]
+- ~~Bouton « 📄 Voir » propose sur des factures sans fichier (404)~~ [CORRIGE — masque si `has_pdf` faux]
+- ~~Les 213 factures captees par le scan mail (`cabinet_brain_documents`) etaient invisibles au rapprochement~~ [CORRIGE — les 2 tables fouillees dans les propositions]
+- ~~Route `/suggestions` avalee par `/:docId` (200 au lieu de proposer)~~ [CORRIGE — routes litterales declarees avant les parametres]
+
+## Résolus — Session 16 juillet (module certificat descriptif)
+- ~~Certificat : l'IA analysait la radio elle-même (ratait une fracture, hallucinait)~~ [CORRIGE — le praticien saisit, l'IA reformule]
+- ~~Radios/photos du certificat disparaissaient (stockées dans /tmp, effacées au reboot)~~ [CORRIGE — coffre Storage `ia-doc-media` + compression sharp]
+- ~~Signer effaçait la radio du PDF (media_ids non réinjectés) et le snapshot des saisies (form → éditeur texte)~~ [CORRIGE]
+- ~~Nom du praticien absent du certificat (obligatoire)~~ [CORRIGE — garde-fou serveur + praticien_nom]
+- ~~Envoi patient : lien brut supabase.co « au porteur » (ni pro ni sûr)~~ [CORRIGE — jadomi.fr/d/<token> + garde-fou date de naissance]
+- ~~PUT /cabinet : profession `chirurgien_dentiste` rejetée par la contrainte DB ; `telephone` écrit dans `email`~~ [CORRIGE]
+- TODO non urgent : contrainte DB `dentiste_pro_cabinets_profession_type_check` à élargir (DDL) pour stocker les libellés fins directement (contourné par `config.profession_precise`).
+
 ## Bugs a corriger
 - **CRITIQUE** : 93 tables sans RLS — SQL correctif pret, attente execution (Passe 90)
 - Migration SQL 89 a verifier si executee proprement (agents_workflow)
 - UI dashboard preferences fourmiliere pas encore cree (backend only)
 - Push + SMS effectifs dans recasage auto du dispatcher (emet evenement mais pas encore les notifs reelles)
-- Module avocat : pas encore d'UI frontend (backend complet, coffre.html a enrichir)
+- ~~Module avocat : jurisprudence — fuite métadonnées brutes (Qpcother, matières en majuscules dans Faits/Points), fondement tronqué, tendances 0% partout, 2 boutons alerte, Bonjour Maître générique~~ [CORRIGE 5 juil — audit Fable 5, 5 bugs ; bug 3 accents = limitation source Judilibre, fondement verbatim]
+- Module avocat jurisprudence : le champ `visa` (Fondement) reste sans accents car Judilibre le sert nu à la source (pas de correctif code — décision verbatim). Piste future non urgente : sourcer le fondement depuis le `summary` accentué quand il couvre le visa.
 - 5 sites dupliques en BDD (garder a8ac57cc-90d2-4ca2-a16b-b288cc437620)
 - Doublons produits dans Panier intelligent
 - Schedulers GPO + Groupage loggent erreurs (normal tant que SQL pas execute)
@@ -2942,6 +3235,23 @@ Utiliser 1Password ou Bitwarden pour :
 ===============================================================
 # 12. SESSIONS DE CADRAGE STRATEGIQUE
 ===============================================================
+
+## Session 24 juin 2026 — Cadrage architecture JADOMI ON-PREMISE / IA locale / Mesh / Fédéré
+> Doc complet : `docs/ARCHITECTURE-ONPREMISE-CABINET.md`. Mémoire : `project_jadomi_onpremise`.
+
+**Vision (Karim) :** JADOMI tourne sur le matériel que le cabinet POSSÈDE DÉJÀ. Les cabinets équipés en imagerie 3D ont des **GPU RTX qui dorment** → JADOMI les exploite pour faire tourner l'IA EN LOCAL, gratuitement, **sans qu'aucune donnée patient ne quitte le cabinet** (RGPD/secret médical béton). Argument de vente : « JADOMI transforme le GPU que vous avez déjà payé en datacenter IA privé ».
+
+**Cascade « ressource la plus proche capable »** (déjà active sur la compta) : GPU RTX cabinet (LAN) → serveur France JADOMI (qwen3.6) → Claude (cas durs).
+
+**Déploiement PAR PALIERS (l'archi s'adapte, n'exige rien) :** 🟢 P0 = aucun matériel → cloud serveur France (LA MAJORITÉ, plancher, déjà construit) ; 🟡 P1 = 1 PC avec GPU → local gratuit (sweet spot, équipés) ; 🔵 P2 = full on-prem hyperviseur+multi-GPU+NAS (RARE = cabinet de Karim = VITRINE/pilote). L'on-premise est un palier PREMIUM, pas la v1.
+
+**Infra réelle cabinet Karim (P2) :** Lenovo ThinkStation P3 Ultra (128 Go RAM, 2×4 To RAID, PAS de GPU, **HYPERVISEUR** : fait tourner Logosw + radio en VM) = hub orchestrateur + base + coffre. 4× workstations RTX = calcul IA. Synology NAS = sauvegarde 3-2-1 + Home Assistant. → JADOMI se livre comme **VM appliance** (OVA/qcow2/VHDX) importée sur l'hyperviseur. ⚠️ À confirmer : VRAM des RTX + type d'hyperviseur.
+
+**JADOMI MESH (« VPN dans l'app ») :** chaque appareil JADOMI = nœud d'un mesh privé chiffré, communication INSTANTANÉE P2P (portable thin → RTX cabinet, 3 cabinets reliés, accès distant). Intégrer **WireGuard + headscale** (OSS, auto-hébergé), connexions SORTANTES only (rien exposé), contrôle d'accès centralisé. JAMAIS de crypto maison. Roadmap.
+
+**RÉSEAU FÉDÉRÉ (horizon 2-3 ans) :** « 100 dentistes 100 RTX » NE veut PAS dire partager les GPU pour traiter du patient (= mur RGPD : la donnée doit être déchiffrée pour être lue → exposée sur la machine d'un tiers → INTERDIT). La bonne voie = **federated learning** : on envoie le MODÈLE vers les données (chaque cabinet entraîne chez lui sur sa RTX), seules les LEÇONS (poids, pas les données) remontent → modèle dentaire qui BAT le cloud sur le dentaire, sans qu'aucune donnée ne bouge. Effet réseau + moat. Partage GPU autorisé UNIQUEMENT intra-cabinets du même propriétaire OU tâches non-sensibles (Studio/pub).
+
+**Honnêteté stratégique (exigée par Karim, « pas là pour recevoir des fleurs ») :** la techno IA-locale/edge n'est PAS nouvelle ; la valeur = application verticale dentaire + GPU déjà payé + packaging RGPD, que les concurrents (cloud/mono-poste) ne font pas. Stratégie produit solide, pas techno inédite.
 
 ## Session 24 avril 2026 (matinée) - Cadrage JADOMI Studio
 
@@ -6155,7 +6465,2009 @@ Derniere mise a jour : 12 juin 2026 (Session reconciliation + Radio Plan IA)
 - jadomi-clean.git conserve sur disque comme repo "propre" de reference
 
 Derniere mise a jour : 13 juin 2026 (JCI rapatrie + teste + push GitHub propre)
+
+## Session 13 juin 2026 (suite) — Conception DENTAL KNOWLEDGE ENGINE (DKE)
+
+### Decision strategique : le DKE est le SOCLE scientifique des modules dentaires
+Discussion fondateur. Le but reste le PLAN DE TRAITEMENT. Pour etre serieux il faut
+du savoir dentaire reel, pas l'opinion fabriquee d'un LLM. Le DKE se branche au-dessus
+de JCI (JCI reflechit/debat/decide, le DKE sait/prouve) sans modifier JCI.
+
+### Le triple combo (validé fondateur)
+1. SCIENCE — litterature internationale, sources LEGALES gratuites (modele Judilibre) :
+   PubMed/E-utilities, Europe PMC (+OA fulltext), Semantic Scholar, Cochrane, ClinicalTrials.
+   Limite unique : pas de redistribution du texte integral PAYANT (abstract+DOI+synthese OK).
+2. REGLEMENTATION FR — CCAM, 100% Sante (paniers RAC 0 / modere / libre), C2S, conventions
+   (Ameli/Legifrance, donnee publique). On INGERE la nomenclature, on n'improvise pas la CCAM.
+3. PERSONNALISATION PATIENT — couverture (C2S/mutuelle/sans), facteurs de risque, moyens.
+
+### Regles d'or gravees
+- Zero affirmation clinique sans citation VERIFIABLE (4 verrous anti-hallucination :
+  reponse ancree, citations verifiees vs base, niveau de preuve affiche, abstention via Trust JCI).
+- Le profil de couverture definit le plan PAR DEFAUT, jamais le PLAFOND des options
+  (patient C2S = plan RAC 0 par defaut MAIS options superieures toujours proposees et chiffrees).
+- Plan a options chiffrees : RAC 0 / modere / libre avec reste a charge selon profil.
+- Toujours "aide a la decision, validation praticien", jamais de diagnostic autonome.
+
+### Specialites : paro, implanto, endo, prothese/esthetique, ORTHO, chirurgie, omni
+### 2 veilles datees/versionnees : scientifique (par specialite du praticien) + reglementaire
+
+### LIVRABLE : docs/DKE-cahier-des-charges.md (architecture, schema SQL, agents, workflow
+Radio Plan V2, roadmap MVP 3 mois + 12 mois, budget). Radio Plan = 1er client du DKE.
+Roadmap finissable : Phase 0 = finir Radio Plan v1 (lien patient) ; Phase 1 = DKE MVP thin
+branche sur Radio Plan ; puis experts + reglementaire + ortho ; puis ParoAI.
+
+### DKE Phase 0 — FAIT (13 juin) : Radio Plan branche sur le dossier patient
+- Table radio_plan_analyses creee sur Supabase (id, cabinet_id, patient_id, societe_id,
+  created_by, observations, result jsonb, created_at) + index + GRANT + RLS + policies.
+  DDL applique via la session MCP du fondateur (le MCP Supabase n'est PAS connecte sur ce
+  serveur ; ni psql, ni token Management, ni mot de passe DB dans .env, ni RPC exec_sql reelle).
+- api/radio-plan.js : + POST /save (enregistre l'analyse liee au patient, scope cabinet via
+  requireCabinet de dentiste-pro/shared) + GET /patient/:id (historique).
+- public/radio-plan.html : etape "0. Dossier patient" (recherche live via
+  /api/dentiste-pro/patients/search, header X-Societe-Id) + bouton "Enregistrer dans le dossier".
+- Deploye : pm2 reload OK, page 200, endpoints montes et proteges (missing_token sans auth),
+  table testee (insert/lecture). Test navigateur praticien complet a faire cote front.
+- Prochaine etape DKE = Phase 1 (socle dke_knowledge + ingestion PubMed/EuropePMC).
+
+### Session 13 juin (soir) — Radio Plan ameliore + REPRISE ICI la prochaine fois
+- Radio Plan : passe en Opus 4.8 + streaming (texte au fur et a mesure, plus de blocage).
+  Fixes : max_tokens 8000, garde res.headersSent, nginx proxy_read/send_timeout 300s,
+  compteur de secondes UI. Capture ecran : getDisplayMedia({video:true}) (tous les modes).
+- Onglet Radio Plan remonte en position 5 (apres Patients) dans dentiste-pro.html.
+- ALTERNATIVES selon les moyens du patient : chaque acte couteux propose alternatives
+  (economique/intermediaire/premium + remboursement 100_sante/panier_maitrise/hors_panier),
+  option COMPROMIS (RAC0+libre), et COUT COMPLET avec prerequis (implant+greffe -> propose
+  bridge/PAP sans greffe). Affiche sous chaque acte. Detail RAC reste INDICATIF (DKE phase 1).
+- Cout Opus 4.8 : 5$/25$ par M tokens => ~0,10-0,20 EUR / analyse. Negligeable a faible volume.
+- GARDE-FOU coût EN ATTENTE : sql/ai-usage-daily.sql ecrit (table quota journalier par user),
+  PAS encore execute ni cable. A faire : executer le SQL via MCP fondateur + cabler limite
+  journaliere + message upsell dans /analyze (fail-open).
+
+### PROCHAINE ETAPE VALIDEE : DKE Phase 1 — couche REGLEMENTATION FR d'abord (pas la science)
+Raison : douleur live = RAC exact (bridge 24/27, compromis, greffe). Plan :
+- Etape 1a : verifier dispo open data CCAM dentaire + paniers 100% Sante (Ameli/data.gouv/Legifrance)
+- Etape 1b : table dke_actes (code CCAM + libelle + base rembours. + panier + conditions) + ingestion
+- Etape 1c : Radio Plan affiche RAC reel + tarif + reste a charge
+- Puis science PubMed/EuropePMC ensuite (pour ParoAI/recommandations cliniques).
+Ne PAS inventer la CCAM : ingerer l'officiel, le dentiste valide.
+
+### Etape 1b EN COURS — sourcing donnees (13 juin soir)
+- CCAM dentaire : 231 codes+libelles dispo OPEN DATA (Licence Ouverte 2.0), telecharge dans
+  /tmp/ccam.csv depuis data.gouv (interhop-actes-ameli.csv). MAIS : codes+libelles seulement,
+  PAS de tarif/base remboursement, PAS de panier 100% Sante.
+- Grille HLF + paniers (le RAC reel en €) : PAS en open data CSV. Source = convention dentaire
+  annexe IV (Legifrance) + ameli pro. Ameli=403 bots, sante.gouv=captcha.
+- VOIE CHOISIE = API Legifrance (PISTE). On a deja lib/legal-providers/legifrance.js +
+  piste-auth.js + credentials .env (PISTE_OAUTH_CLIENT_ID/SECRET). Token PISTE OK.
+- BLOCAGE : API Legifrance renvoie 429 (/search) + 403 (/consult) de façon constante =>
+  l'app PISTE n'est PROBABLEMENT PAS abonnee a l'API Legifrance (abonnement separe de Judilibre).
+  ACTION FONDATEUR : sur piste.gouv.fr, ajouter l'API "Legifrance" aux abonnements de l'app
+  (comme il avait fait pour Judilibre). Ensuite legifrance.js marche sans modif.
+- ALTERNATIVE (voie A) : le fondateur (dentiste, acces ameli pro) fournit la grille HLF/paniers
+  (PDF/Excel), je la structure dans dke_actes, il valide. Plus rapide, n'attend pas PISTE.
+- INSIGHT PRODUIT majeur (fondateur) : surfacer les actes REMBOURSABLES que le praticien oublie
+  (le patient y a droit) = super-pouvoir DKE. Section "Remboursements possibles" dans Radio Plan.
+  Optimisation LEGITIME (pas sur-codage), dentiste valide l'eligibilite.
+- Scope CORRIGE : pas "40 actes choisis par moi" mais TOUTE la grille officielle des paniers
+  (centaines d'entrees : matiere x position de dent). Moi=tuyauterie, dentiste=validation.
+
+### SOURCING RESOLU (13 juin soir) — le fondateur a fourni les PDF officiels
+- API Legifrance bloquee (pas d'abonnement possible), scraping bloque partout. SOLUTION : le
+  fondateur (dentiste) a uploade les docs officiels via jadomi.fr/formation/upload.
+- Fichiers dans /home/ubuntu/uploads/incoming/ ET copies dans data/dke-sources/ (gitignored, serveur) :
+  * annexes-convention-dentaires-avenant2.pdf (175 p) = ANNEXE IV (HLF) + ANNEXE V (paniers RAC0/maitrise/libre) = LA GRILLE COMPLETE
+  * memo-synthetique-convention-dentaire-25fevrier.pdf (12 p) = synthese Ameli 2024 (deja lu/extrait, OK)
+  * joe_20230825...legifrance.pdf (222 p) = JO convention 2023-2028
+- PREUVE faite : lecture PDF + extraction OK (ex memo: HBLD031 TR 182,75/max 829,25 ; vernis HBLD045 25e ;
+  paro HBJA003/171/634+HBQD001 etendus a 6 ALD). Le Read tool lit les PDF (param pages, max 20/req).
+- FAIT (13 juin soir) : extraction annexe V + ANNEXE II via scripts/dke-parse-convention.py ->
+  707 ACTES (fusion JO Legifrance 2023 + avenant2 2026) : 60 RAC0 + 67 maitrise + 43 libre + 537 soins/chir, base de
+  remboursement Secu (1.01.2026) ET HLF la ou applicable. 594 libelles. Verifie : detartrage
+  HBJD001 base 28,92e ; HBLD031 base 182,75e + HLF 1133e. sql/dke-actes.sql (CREATE dke_actes
+  colonnes code/libelle/panier/hlf_2026/base_remboursement + 617 upserts) + JSON. TOUT COMMITE.
+  Lacunes mineures a affiner : ~23 libelles vides, qq bases manquantes sur prothese, qq codes
+  absents (HBMD042...). Le dentiste valide + on affine. Source 222p JO Legifrance pas encore parsee.
+  Rapport envoye par mail au fondateur (karim_bahmed@yahoo.fr via noreply@, sendMail OK).
+- TABLE dke_actes CREEE + 707 ACTES INSERES sur Supabase (13 juin soir, via supabase-js). LIVE & verifie
+  (HBJD001 base 28,92 ; HBLD073 rac0 453,20 ; HBLD031 rac0 1133+182,75).
+- RESTE (reprise) :
+  2) brancher Radio Plan sur dke_actes (afficher panier + HLF reel par acte propose). 3) dentiste
+  valide la liste. 4) enrichir libelles manquants (62/170 vides) depuis annexe II + base remboursement.
+  NB : panier libre = pas de HLF (tarif libre). Codes en doublon (ex HBLD073) -> rac0 prioritaire.
+
+## Session 13 juin 2026 (suite) — GrowthOS construit + DECISION "tout reprendre et rendre fonctionnel"
+
+### GrowthOS BY JADOMI (nouveau module, sur JCI, multi-tenant) — CONSTRUIT + EN PROD
+Systeme d'intelligence commerciale autonome : trouver / scorer / convertir des prospects en
+automatique. Construit avec la methode Builder/Reviewer (workflow 16 agents + fondations posees
+a la main). Tout passe node -c, monte dans server.js apres JCI (app.use('/api/growthos')), pm2
+reload OK, API repond (19 agents servis).
+- Plugin JCI : lib/jci/plugins/growth.json — Conseil de Direction (6 analystes + 9 contradicteurs
+  = 15 voix), risk_officer = veto. Valide par JCI.
+- lib/growthos/ : llm.js (DeepSeek volume + Claude sensible + Ollama fallback, via DATA GUARD),
+  registry.js (19 agents, 9 actifs / 10 planifies), agent-brain.js (runCouncil fait debattre via
+  JCI, opinions LLM en parallele, synthese CEO, veto respecte), revenue-engine.js (bestActionToday
+  + dailyBrief = brief 5 min), tenants.js + config/tenants/jadomi.json (multi-tenant generique,
+  cible = config), db.js, agents/{lead-hunter,enrichment,scoring,demo-builder}.js.
+- api/growthos.js : routes agents/tenants/leads/hunt/enrich/score/demo/brief/best-action/council/
+  actions(+approve/reject)/capture. RIEN n'est envoye sans validation (actions en status 'draft').
+- public/growthos/index.html (dashboard CEO) + inscription.html (capture mail inbound, LIVE).
+- sql/growthos.sql : 6 tables (tenants/leads/opportunities/actions/daily_briefs/memory) + GRANT
+  + RLS. APPLIQUE dans Supabase par le fondateur (editeur SQL) le 13 juin — TESTE end-to-end :
+  capture OK (lead en base), brief OK (genere DeepSeek), Conseil OK (debat 15 voix en 20s, veto
+  Risk Officer fonctionnel sur une question Google Ads 500e -> NON, 14 contre 1).
+- Tuile "GrowthOS" ajoutee dans les acces rapides de public/organisation.html (-> /growthos).
+- societe_id du tenant jadomi = UUID (11111111-...) car JCI stocke societe_id en uuid.
+
+### QUALITE — mensonge retire (exigence fondateur)
+Page inscription.html : claim "Copilot vocal — actes saisis a la voix" = MENSONGER (pas
+operationnel) -> retire, remplace par du verifiable (comparateur 172K produits / 16 fournisseurs).
+Regle reaffirmee : on ne promet QUE ce qui est reel. Credibilite B2B.
+
+### DECISION STRATEGIQUE MAJEURE (fondateur) — change le cap
+Le fondateur arrete d'empiler des features. Constat lucide : "on n'a pas fini, il reste beaucoup
+de taf, on doit TOUT REPRENDRE et rendre TOUT fonctionnel." Beaucoup de modules sont des facades
+ou marchent a moitie. Nouveau mode de travail = FINIR l'existant, pas ajouter du neuf.
+- Le comparateur (meilleur actif reel, module vendable seul) "compare TROP MAL" (cross-matching
+  faible) -> c'est LE chantier prioritaire : le rendre irreprochable.
+- Plan convenu : (A) CARTE DE VERITE = audit fonctionnel honnete de chaque module (vert marche /
+  jaune a moitie / rouge casse), priorise par valeur. (B) Reparer un module a la fois jusqu'a
+  irreprochable, en commencant par le comparateur.
+
+### A FAIRE (reprise prochaine session)
+1. CARTE DE VERITE : tester en vrai tous les modules, noter l'etat fonctionnel reel.
+2. COMPARATEUR : diagnostiquer pourquoi le cross-matching compare mal (lib/scrape-ia/cross-matcher.js,
+   lib/rag, scripts/crossmatch-pdf-db.js) et le rendre fonctionnel = priorite n°1.
+3. GrowthOS : Lead Hunter a besoin d'une cle GOOGLE_PLACES_API_KEY pour chasser (degrade sans).
+   Agents 'planned' a allumer plus tard (ads = budget, social = comptes connectes).
+
+### BUGS / DETTE identifies cette session
+- Comparateur : cross-matching faible, comparaisons mauvaises (priorite).
+- Working tree tres lourd (~1089 fichiers diverge) : TOUJOURS git add cible, jamais git add .
+
+Derniere mise a jour : 13 juin 2026 (GrowthOS construit + EN PROD ; cap = tout reprendre et rendre fonctionnel, comparateur prioritaire)
+- ODF/ORTHO + INFIRMIER (analyse 13 juin) : PAS dans la convention dentaire. ODF = NGAP (lettre-cle
+  TO=2,15e dans ce doc, mais coefficients TO90/75/50 dans la NGAP = autre doc). Infirmier = convention
+  infirmiere + NGAP (AMI/AIS/BSI) = autre doc. A recuperer (Ameli/Legifrance) pour etendre dke_actes
+  aux modules ortho et IDE. Actes CCAM ortho-lies (contention HBLD051/053, traction) DEJA dans les 707.
+### PASSE Radio Plan V2 — 14 juin 2026 (RCP contradictoire + CCAM versionnee + garde-fou cout + creation patient par capture)
+Fichiers : api/radio-plan.js, public/radio-plan.html, api/dentiste-pro/patients.js, public/admin/dentiste-pro.html (backup .backup-20260614_222445), lib/radio-memory.js (NEW), scripts/dke-parse-convention-v2.py (NEW), scripts/seed-dke-ccam.js (NEW), scripts/_run-sql.js (NEW), sql/dke-ccam-versioned.sql (NEW), sql/radio-usage.sql (NEW), data/dke-sources/dke-{actes-v2,tarifs,paniers}.json (NEW).
+Livre :
+- UX module radio : saisie texte+vocale (zone editable + dictee), historique des plans patient, RAC en puces couleur (RAC0/modere/libre/mixte), pronostic par dent (conservable/douteux/non_conservable), donnees_a_confirmer, ALERTES (lesions suspectes risque tumoral, contacts defaillants, obturations non etanches, periapical) en banniere rouge. Bug bouton retour corrige.
+- QUALITE CLINIQUE : "conservation par defaut" (corrige sur-extraction : dent restauree != racine residuelle, perte osseuse moderee = surfacage pas extraction, radio ne montre pas mobilite/sondage).
+- RCP CONTRADICTOIRE A LA CARTE : observateur -> 5 specialistes EN PARALLELE choisis par le praticien selon le patient (endo/paro/prothese/implanto/generaliste, cases a cocher) -> arbitre (conserve par defaut). Si un specialiste n'est pas convoque, l'arbitre ne propose rien de son ressort (ex: pas d'implanto = pas d'implant). + /refine (le praticien critique le plan).
+- CCAM VERSIONNEE : parser v2 du JO Legifrance (Annexe II 6 tarifs dates + Annexe V 4 HLF dates) -> 706 actes / 922 tarifs / 286 paniers -> tables Supabase dke_ccam_actes/tarifs/paniers + vue dke_ccam_actuel (tarif+panier en vigueur a current_date, gere echeancier +3% 2026). Branche dans radio-plan.js (buildCcamReference injecte les 157 actes a panier). SQL execute via API Management Supabase (scripts/_run-sql.js, token sbp_).
+- GARDE-FOU COUT : plafond ~10 EUR/mois/cabinet (RADIO_CAP_EUR, fondateur ILLIMITE), table radio_usage, comptage des tokens reels de tous les appels. CREDIT VISIBLE qui descend (GET /api/radio-plan/credit + pastille frontend). ~18-36 analyses/mois selon equipe.
+- MEMOIRE plans similaires : lib/radio-memory.js (RAG local sqlite-vec + Ollama nomic, base data/rag/plans.db), indexe a /save, injecte les cas similaires du cabinet a /analyze.
+- CREATION PATIENT PAR CAPTURE (dash pro) : POST /api/dentiste-pro/patients/extract (Claude Vision lit une capture du logiciel de gestion -> champs patient), modale #modal-add-patient dans dentiste-pro.html (openPatientModal reel). Ecrit dans dentiste_pro_patients.
+SQL execute : dke-ccam-versioned.sql (+ vue + GRANT/RLS), radio-usage.sql.
+Verif Doctolib (demande fondateur) : extraction patients OK (7735 dans patients_jadomi via scripts Playwright manuels) mais LECTURE SEULE, pas branche dans l'app, pas de pilotage, session de mai expiree. Vrais patients = patients_jadomi (PAS dentiste_pro_patients).
+RESTE : (1) liste patients reelle + dossier unifie sur patients_jadomi, (2) pilotage Doctolib (annuler/poser RDV) + exposer dans l'UI, (3) packs Stripe pay-as-you-go (recharge du credit). CODEX.md mis a jour (section 6).
+
+### 15 juin 2026 — Dental Evolution : Campagne PANDA + infra mail (serveur DE Hostinger, HORS repo jadomi)
+- FLYERS PANDA refaits (edition PDF via PyMuPDF/venv .venv-pdf) : prix du site, retrait promo + date perimee, profondeur 0a23mm, prix rouge centre, langue Panda Free "Francais, Anglais" (etait Chinois/Anglais). Combos Bamboo+Smart=16480 / Bamboo+Free=17480, brochure Bamboo Ultra (encart 6490), brochure Smart (adresse Villeneuve-d'Ascq).
+- ANTI-SPAM DE (cause = wp_mail PHP mail() non signe) : mu-plugin dental-smtp.php = SMTP Hostinger authentifie (smtp.hostinger.com:465, contact@) => DKIM => boite de reception. Vaut pour TOUS les mails DE.
+- HUB INTERNE prive /flyers-panda/ (htaccess Basic Auth, catalogue ZENDO = WIP prive) + PAGE PUBLIQUE /scanners-panda/ (flyers+videos PANDA, formulaire lead => contact@ via mu-plugin dental-panda-lead.php). Onglet "Flyers & videos" dans dashboard admin DE.
+- CAMPAGNE PANDA 260 dentistes : base AFPPCD (contacts-dentistes.xls nettoyee STOP/bounces) + 3 cabinets Nassim. mu-plugin dental-panda-campaign.php = envoi par lots WP-Cron auto-replanifie, 2 variantes regular/nassim, perso "Bonjour Dr X". Programmee 15 juin 06h00 FR. Hero = GIF flyers defilants 164Ko (Yahoo refuse >~1Mo). Arret: wp option update de_panda_stop 1. Detail: memoire agent project_panda_flyers.md.
+
+## Session 15 juin 2026 — Radio Plan IA fiabilise + socle DKE (connaissances sourcees)
+
+Grosse session de fiabilisation du module Analyse Radio, pilotee par le fondateur (dentiste)
+qui a teste en reel et corrige chaque faute. Validee "c'est tres bien".
+
+### Corrections cliniques (prompts api/radio-plan.js)
+- Lecture : ne JAMAIS inventer un soin ; le composite est radio-opaque comme le metal → matériau
+  jamais deduit de la densite ("restauration radio-opaque, a confirmer") ; attelle de contention
+  composite reconnue = signal de pronostic terminal ; alveolyse terminale = donnee RADIO lisible →
+  avulsion + remplacement, PAS d'acharnement (interdiction conservation lourde retraitement+couronne
+  sur dent terminale) ; qualite d'image = technique reelle (pano nette = "bonne"), pas les limites de
+  modalite ; imagerie complementaire CLAIRE (retro long cone + CBCT pour lesions du bloc anterieur
+  maxillaire) sans spammer.
+- Charting present/absent : l'IA lit MAL sur une pano (limite de perception). SOLUTION = le praticien
+  donne le schema. ODONTOGRAMME cliquable (radio-plan.html etape 2) : cycle presente→absente→couronne→
+  soin→endo→implant + dictee/texte des absentes. Envoye `chart_dentaire{presentes,absentes,etats}`.
+  buildChartBlock() l'injecte comme VERITE NON NEGOCIABLE (observateur+arbitre) : listes exactes,
+  jamais remplacer une dent presente, etats declares acquis (moins de tokens, zero erreur matériau).
+- Juridique : "Couverture" supprimee (profilage interdit = discrimination). "Paniers a comparer"
+  (RAC0/maitrise/libre multi-select) met en avant sans filtrer. Obligation d'information / perte de
+  chance : rien coche → toute la palette chiffree ; paniers coches → on respecte. L'outil AIDE, c'est
+  le dentiste qui informe. Retire : decochage auto implanto + "implanto absent → aucun implant".
+- Tech : max_tokens 16000 (anti-troncature), parseur JSON robuste frontend, streaming affiche propre.
+
+### Socle DKE — connaissances sourcees (chaque agent s'ancre avant de parler)
+- lib/dke/knowledge-store.js (SQLite+sqlite-vec, data/rag/dke-knowledge.db, nomic 768d).
+- scripts/dke-ingest-knowledge.js (Europe PMC = PubMed/MEDLINE JSON, legal). 440 entrees ingerees :
+  radiologie 97, paro 76, endo 73, implanto 65, prothese 63, generaliste 39, ortho 27.
+- lib/dke/specialist-knowledge.js : groundingBlock() → references a CITER, fail-open. Cable dans
+  radio-plan.js (observateur=radiologue + chaque specialiste). RESTE : HAS, plus de volume, validation
+  dentiste, citations au frontend.
+- Concurrence (dit franchement) : Claude/GPT = LLM generalistes au coude-a-coude, AUCUN n'egale les
+  modeles de vision dentaire dedies (Overjet/Pearl/Denti.AI) en DETECTION. Notre angle = raisonner/
+  planifier/chiffrer/documenter avec dentiste dans la boucle ; integrer un modele CV dedie plus tard.
+
+### Module COMPTE-RENDU "pour tout" — FAIT (15 juin)
+POST /api/radio-plan/compte-rendu (4 types : consultation / courrier confrere / CR radiologique /
+devis-info patient). Reutilise l'analyse deja faite (previous_result) → ne repaie PAS la RCP, juste
+1 appel Opus 4000 tok + meme garde-fou cout. Frontend radio-plan.html : carte #cr-card (apparait avec
+un plan), 4 boutons type → generateCR() stream dans #cr-text EDITABLE, copyCR(), printCR() (fenetre
+mise en page → impression/PDF navigateur). Vouvoiement, zero emoji, n'invente rien (champs [a completer]).
+
+### Affinages 15 juin (tests reels fondateur) + reduction cout
+- Odontogramme : nouvel etat "condamnee / a extraire (T)" dans le cycle (presente→absente→condamnee→
+  couronne→soin→devitalisee→implant ; T en 2 clics). buildChartBlock : dents condamnees = non_conservable,
+  AVULSION + remplacement, INTERDICTION de tout soin conservateur dessus (pas de retro "pour preciser",
+  surfacage, retraitement, couronne). Le dentiste a vu l'os (0-2mm), il fait foi.
+- Anti-hallucination renforcee : etats declares = EXHAUSTIFS. Une dent presente non marquee = SANS
+  tenon/ancrage/couronne/endo → l'IA n'en invente AUCUN (reglait un faux tenon invente sur 11). Si elle
+  croit voir un element non declare, elle le signale "a confirmer" sans l'affirmer ni planifier dessus.
+- Lesions peri-apicales : ne JAMAIS ecrire "aucun foyer" sur terrain a risque sans inspecter chaque apex ;
+  toute radioclarte apicale → alertes + retro long cone + CBCT ; lesion SIGNALEE PAR LE PRATICIEN = certaine
+  (impose imagerie). Capture d'ecran coupee = source (pas le code) → conseiller l'IMPORT FICHIER (pano
+  complete+nette). Apercu radio agrandi (max-height 78vh) + lightbox plein ecran au clic (Echap pour fermer).
+- COUT : 5 specialistes passes sur Sonnet 4.6 (MODEL_SONNET), observateur+arbitre restent Opus 4.8
+  (MODEL_OPUS). ~-40 %/analyse (0,40-0,60$ → 0,25-0,35$). NB : costEurFromTokens facture encore tout au
+  tarif Opus → sur-estime un peu (prudent). A ajuster au vrai tarif Sonnet si besoin.
+- INCIDENT : API Claude tombee a court de credit ("credit balance too low") → toutes les analyses
+  echouaient. Fondateur a recharge 100$. Conseiller auto-reload sur console.anthropic.com.
+
+## Session 16 juin 2026 — Tri des 2 dashboards (menus) + vrai dossier patient branche
+
+Demande fondateur : "on doit mieux trier, on a 2 dashboards, le PRO via l'agenda = patients, le
+classik = gestion cabinet, mais tout est mal organise". Decision validee : TRI PAR LES MENUS d'abord
+(sur/rapide, additif, reversible, ZERO section deplacee entre fichiers) + brancher le vrai dossier patient.
+
+### Diagnostic (carte des 2 dashboards)
+- Classik = index.html (servi a /dentiste, titre "Gestion de stock dentaire"). Deja ~90% cabinet ;
+  seul l'accordeon "JADOMI IA" melangeait le monde patient.
+- PRO = public/admin/dentiste-pro.html (servi a /admin/dentiste-pro, 301 depuis .html). Sidebar en
+  vrac : modules cabinet (Mon Labo, Reseau, Equipe, Connecteur, Chat IA Config, Config) interleaves
+  entre les modules patient (Agenda, Patients, Radio, Mes cas, Batch, Liste d'attente, Rappels).
+- "Mes cas" (PRO, API /api/dentiste-pro/cases) != "Cas Cliniques" (classik, API /api/cas-clinique) =
+  2 modules DIFFERENTS, pas un doublon. Ne pas fusionner.
+- Dossier patient du PRO etait une MAQUETTE : renderPatients() inline sur 8 DEMO_PATIENTS codes en dur.
+  tab-patients.js (API reelle) existait mais n'etait PAS charge.
+
+### FAIT (4 edits PRO + 1 edit classik, backups .backup-20260616_110056)
+- PRO dossier patient REEL : charge js/tab-patients.js ; section #tab-patients = <div id="pro-patients-root">
+  (table demo retiree) ; init + switchTab('patients') appellent window.JADOMI_PRO.renderPatients(root)
+  (namespace, pas de collision avec le global inline). Bouton "Ajouter par capture" (openPatientModal
+  Vision) CONSERVE. Module a fallback demo+banniere si API 401 -> zero casse hors connexion.
+- PRO sidebar reorganisee en 3 sections labellisees (script Python, SVG preserves a l'identique) :
+  PATIENTS & CLINIQUE (accueil,dashboard,agenda,patients,radio-plan,cases,batch,waitlist,rappels) /
+  COMMUNICATION & OUTILS (triangle,chat,ia-doc,stats) / GESTION CABINET (mon-labo,reseau,equipe,
+  connector,ia-config,config) + lien "Mon Cabinet" -> /organisation conserve. 19 boutons, aucun perdu.
+- CLASSIK : accordeon "JADOMI IA" -> renomme "Espace patient" (icone dent), rendu EXPANDABLE
+  (toggleNavGroup ; avant le titre redirigeait et rendait les sous-items inaccessibles), 1er item =
+  "Dashboard PRO (agenda)" -> /admin/dentiste-pro.html. Cas Cliniques/Snap Photos/Questionnaires/Voice
+  conserves + acces /admin/jadomi-ia preserve en sous-item. Rien supprime.
+- Validation : 2 pages HTTP 200, node --check sur le gros inline JS du PRO (99K) = OK, grep integrite OK.
+- Pas de modif server.js (fichiers statiques) -> pas de reload PM2.
+
+### RESTE (prochaine passe - "deplacer le code", non fait ici)
+- snap-photos / questionnaires / passeports / ia-voice : leur CODE vit encore dans index.html (classik).
+  Pour un tri "physique" complet il faudra relocaliser ces sections dans le PRO (option deplacement de
+  code, plus risquee) ou les exposer via deep-link /dentiste#section depuis le PRO.
+- Unification patients_jadomi (7735) <-> dentiste_pro_patients : "pour bientot", pas maintenant (regle
+  des 2 mondes). Le module patient du PRO tape /api/dentiste-pro/patients = correct selon la regle.
+- filterPatients() (PRO) devenu code mort (input retire) - inoffensif, a nettoyer plus tard.
+
+## Session 16 juin 2026 (suite) — Equipe unifiee + Module Blanchiment Lot 1
+
+### Equipe : un seul module, au cabinet
+2 modules "Equipe" doublonnes (PRO onglet equipe + classik "Mon Equipe") tapaient la MEME API
+/api/dentiste-pro/team. Decision fondateur : un seul, au classik (cabinet). PORTE les fonctions
+avancees du PRO (permissions 14 modules + roles) dans le classik : bouton "Droits" par membre +
+editeur autonome (modale creee en JS, namespace eqPerm, styles inline) reutilisant eqHeaders() et
+PUT /team/:id/permissions + /role. Onglet Equipe RETIRE du PRO (menu + section + garde renderTeam).
+Fichiers : index.html (eqPerm* apres eqRemove + bouton dans eqLoadTeam), dentiste-pro.html.
+
+### Module BLANCHIMENT — Lot 1 (live)
+Reanalyse : pas un module mais 3 systemes deconnectes (doc passeport statique 6 seances en dur ;
+QR Snap casse car pointe vers checkin.html qui ignore les photos + token mono-usage ; IA teinte
+photo-ai.js orpheline sur autre table). Decisions fondateur : photo optionnelle, seances affichees
+SEULEMENT si contenu, upload direct PAR LE PRATICIEN (le manque qui bloquait) + QR garde, teinte
+SAISIE PAR LE DENTISTE (ZERO IA, "le dentiste est le mieux place"), photos typees visage/sourire,
+envoi au patient avec OK. Spec complete en memoire project_blanchiment.md.
+- Construit SANS nouvelle table (pas d'acces SQL/MCP dans la session) sur cas-clinique (type=blanchiment,
+  vrais patients patients_jadomi). Backend : ajout GET /api/cas-clinique/patients/search?q= (patients_jadomi,
+  scope societe). Front : public/admin/js/tab-blanchiment.js (module autonome) + onglet "Blanchiment"
+  dans le PRO + hook switchTab. Liste suivis, nouveau suivi (autocomplete patient), seances dynamiques,
+  teinte (chips VITA), note, upload photos multiples typees. Stockage sans DDL : teinte = ⟦teinte:X⟧ en
+  tete de note, type photo = JSON dans media.note, seance = note.etape. node -c OK, live HTTP 200.
+- RESTE : Lot 2 (QR patient reparе multi-seances), Lot 3 (vue avant/apres par type + envoi patient avec
+  apercu+OK), Lot 4 (nettoyer ancien modal QR-ou-rien + coquilles vides).
+
+### JADOMI IA integre au dashboard PRO (16 juin, recadrage fondateur "pas de doublon, ameliorer l'existant")
+- Le module Blanchiment isole etait un DOUBLON du beau hub jadomi-ia.html. Recadrage : mettre JADOMI IA
+  DANS le PRO + le rendre fonctionnel. Fait : onglet "JADOMI IA" (public/admin/js/tab-jadomi-ia.js)
+  reprend le design cartes-par-soin du hub + le rend FONCTIONNEL sur cas-clinique : 5 passeports
+  (blanchiment/implant/facettes/orthodontie/rehabilitation=autre), patient avec CREATION A LA VOLEE
+  (non bloquant, via POST /api/dentiste-pro/patients-reels), suivi seances/photos typees/notes, teinte
+  VITA (blanchiment uniquement). Ancien tab-blanchiment.js SUPPRIME. jadomi-ia.html -> redirige vers
+  /admin/dentiste-pro?tab=jadomi-ia (plus de doublon). node -c OK, live 200.
+  AMELIORATIONS (16 juin, tests reels fondateur) :
+  - Patient affiche email + telephone (recherche, liste, fiche). Champ email ajoute a la creation a la volee.
+  - ENVOI au patient par EMAIL (POST /api/cas-clinique/:id/send-passeport) : email saisissable/corrigeable
+    (pre-rempli si en fiche), apercu + message editable + bouton Envoyer (rien sans action), envoi via
+    emailService noreply@jadomi.fr. L'email saisi est ENREGISTRE dans patients_jadomi.email. PAS de SMS
+    (payant, decision fondateur). Donnees : 7736 patients, 6358 avec tel, seulement 920 avec email.
+  - AVATAR patient : la photo uploadee avec le type "Visage souriant" devient l'avatar (best-effort ->
+    patients_jadomi.metadata.photo_url dans add-media, ne bloque jamais l'upload). Affiche en rond
+    (photo ou initiales) dans recherche / liste / en-tete fiche. cas-clinique list+detail et patients-reels
+    renvoient la photo. "tete + nom" demande par le fondateur.
+
+### Dossier patient rebranche sur patients_jadomi (FAIT 16 juin)
+- Nouveau routeur api/dentiste-pro/patients-reels.js (liste/search/fiche/create sur patients_jadomi
+  ~7736, scope req.societe.id) monte dans index.js. tab-patients.js: API_BASE -> /patients-reels.
+  L'ancienne API /patients (dentiste_pro_patients) reste INTACTE (utilisee ailleurs: radio-plan). node -c OK, 401 = montee.
+- jadomi-ia.html: carte "Blanchiment" redirige desormais vers /admin/dentiste-pro?tab=blanchiment (nouveau module)
+  au lieu de l'ancien modal openPasseportIA. Les autres passeports (implant/facettes...) restent sur l'ancien ecran.
+- Tri 2 dashboards non termine : reste a sortir du PRO Connecteur/Stats/Config/Chat IA Config (vers classik),
+  remonter Reseau+Mon Labo en section patient, ajouter Questionnaires+Passeports, nettoyer coquilles classik.
+
+### JADOMI IA / Passeport patient — module complet (16 juin 2026, soir)
+Gros chantier piloté par le fondateur en tests réels (patiente BENARAB Karima). Tout est LIVE.
+
+- **Onglet "JADOMI IA" dans le PRO** (public/admin/js/tab-jadomi-ia.js, namespace window.JADOMI_IA) : accueil
+  cartes par soin (design jadomi-ia repris), 5 passeports (blanchiment/implant/facettes/orthodontie/
+  rehabilitation=type 'autre'). Patient avec autocomplétion (patients_jadomi) + CRÉATION À LA VOLÉE
+  (non bloquant, POST /api/dentiste-pro/patients-reels). jadomi-ia.html redirige vers l'onglet.
+- **Séances dynamiques** : teinte VITA (chips, blanchiment uniquement, ZÉRO IA), note, 2 emplacements
+  photo Visage souriant + Sourire (gros plan) + Autre, ajoutées ENSEMBLE dans la même séance. Affichage
+  par vue, suppression photo (× sur chaque photo, DELETE /media/:id et /snap-photo/:id).
+- **Photo Visage = avatar patient** (best-effort dans add-media -> patients_jadomi.metadata.photo_url),
+  affiché dans recherche/liste/fiche (tête + nom).
+- **QR patient réparé** : POST /api/snap/create (sans cas_id = colonne inexistante, bug corrigé) -> page
+  /snap/:token (ROUTE AJOUTÉE dans server.js, elle manquait = 404 historique). Guidage live "plein visage
+  puis sourire" + étiquetage vue (snap_photos.metadata.vue) + auto-actualisation du dash (polling 4s,
+  stop nav + 5min). server.js : routes app.get('/snap/:token') et app.get('/p/:token').
+- **Passeport beau & dynamique** : public/documents/passeport-blanchiment.html rendu dynamique (script lit
+  ?cas+&soc+&t en mode praticien, OU /p/<token> en mode public). Rempli avec vraies données (patient,
+  teintes avant/après, photos, timeline séances). Durée traitement corrigée ("variable, jusqu'à ~1 mois
+  et demi", plus "10-15 jours"). Bouton "Voir le passeport" ouvre le doc.
+- **Envoi au patient par EMAIL** (POST /api/cas-clinique/:id/send-passeport) : message éditable (apercu+OK),
+  salutation formelle "Bonjour [Civilité] Nom Prénom" (nom en casse propre via title-case, civilité Mme/M.
+  auto si sexe connu sinon boutons rapides), signature "Dr Bahmed Karim", bouton "Voir mon passeport" ->
+  LIEN PUBLIC SÉCURISÉ. emailService noreply@jadomi.fr.
+- **LIEN PUBLIC SÉCURISÉ** : jeton unique aléatoire (crypto 16o) stocké dans cas_cliniques.metadata.public_token.
+  Route GET /api/cas-clinique/public/:token (AUCUNE auth, lecture seule, ne renvoie QUE ce passeport, pas
+  tel/email patient). jadomi.fr/p/<token>. Mauvais jeton = 404. Révocable/expirable (metadata).
+- **SÉCURITÉ multi-société** : helper dentalSocieteId() (cabinet_dentaire) dans cas-clinique + patients-reels
+  -> le monde patient vise TOUJOURS Precision Dentaire (c8fe3f0f), jamais les 3 autres sociétés. patients_jadomi
+  = 7736 vrais patients (la table) ; dentiste_pro_patients (15) abandonnée pour le dossier patient.
+- **INCIDENT email patient (corrigé)** : la feature "enregistrer l'email à l'envoi" écrasait l'email patient
+  quand le fondateur testait avec son email. Email de BENARAB (karima5902@hotmail.fr) écrasé puis restauré
+  manuellement. GARDE-FOU : on ne remplit l'email que si la fiche n'en a PAS (jamais d'écrasement) ET jamais
+  un email interne/admin (karim_bahmed@yahoo.fr, contact@, noreply@). LEÇON : ne jamais écraser une donnée
+  patient existante sans intention explicite.
+
+## Session 18 juin 2026 — Radio Plan IA : AGENT AUDITEUR (self-critique) deploye
+
+Contexte : benchmark de la concurrence (WeDiagnostix/Logosw, US Pearl/Overjet/VideaHealth, Chine OralGPT)
+puis recherche mondiale de modeles de detection. CONCLUSION : aucun modele open-source gratuit/CPU/licence
+commerciale avec numerotation FDI n'existe (OralGPT 46% + GPU + dataset non-commercial ; OralBBNet = notebooks
+sans poids ; SerdarHelli = segmentation seule). Sans GPU (le fondateur n'en a pas/veut pas) -> on prend la
+METHODE, pas les modeles. Option reserve si la detection devient le goulot : Diagnocat (EU, CE+RGPD, 129€/mois
+= 500 panos) — mais DECIDE NON necessaire (la fiabilite vient du praticien qui valide, pas du modele).
+
+Livre (upgrade qualite n°1, GRATUIT, 0 GPU, sur l'API Claude existante) :
+- `api/radio-plan.js` : /analyze passe de 3 a 4 etapes. L'arbitre (Opus) genere le plan EN MEMOIRE (plus
+  streame token par token), puis un AGENT AUDITEUR (Sonnet 4.6, const AUDITEUR_SYS + fn auditPlan()) relit
+  le plan selon 9 regles (coherence present/absent, pas de remplacement de dent presente, pas d'extraction
+  sur perte legere/moderee, pas d'acharnement terminal, respect dents condamnees praticien, anti-hallucination,
+  alternatives obligatoires, mentions de prudence preservees, codes catalogue stricts via ACTES_REF).
+  Renvoie {"need_revision":false} ou {"need_revision":true,"corrections":[],"plan_corrige":{}}. NON BLOQUANT :
+  echec/JSON non parsable -> plan original conserve (zero regression). Heartbeat garde actif pendant arbitre+
+  audit, coupe avant l'envoi du plan final en 1 fois. Client radio-plan.html INCHANGE. Narration "1/4..4/4".
+- Test reel : 3 fautes injectees (46 presente+absente, extraction sur perte moderee, implant sur dent
+  presente) -> 3 detectees+corrigees, ~23s, ~0,025€/audit. `module.exports.__auditPlan` expose (tests, non HTTP).
+- Backup `api/radio-plan.js.bak-20260618-*`. node -c OK, pm2 reload jadomi (port 3001), route /credit 401 OK.
+
+ROADMAP : (cochee) auditeur self-critique. (a faire) upgrade n°2 = ZOOM zones suspectes (re-soumettre crops
+apex/zones douteuses a Opus, pur prompting, sans GPU) — APRES validation du fondateur au cabinet le 19 juin.
+BUGS/TODO : RAS sur l'auditeur. Le fondateur TESTE l'auditeur au cabinet le 19 juin sur 2-3 vraies radios.
+
+## Session 21 juin 2026 — Compta : Capture facture par QR (etape 7 dossier comptable) BRANCHEE
+
+CONTEXTE : les 5 releves CIC du fondateur (Bahmed Karim EI, janv->mai) se lisent
+PARFAITEMENT via le parseur deterministe (142/123/197/127/115 tx, equilibre=true au
+centime sur les 5). Lecture CIC = VALIDEE sur donnees reelles. Le blocage historique
+(releves CIC illisibles) est resolu.
+
+FAIT (Chantier A — etape 7 "QR photo facture", le placeholder alert() est branche) :
+- NOUVEAU module api/compta-snap/index.js : jeton en memoire (TTL 30 min, pas de table),
+  POST /create (auth -> QR PNG via lib qrcode, vrai QR scannable), GET /:token (public),
+  POST /:token/upload (public, multer memoire, N photos), GET /:token/status (auth, poll).
+  Photo(s) -> sharp (rotate EXIF + resize + jpeg) -> pdfkit (1 photo = 1 page A4) ->
+  upload bucket Storage 'documents-compta' (${userId}/${hash}.pdf) -> insert documents_compta
+  (type 'facture', source 'photo_qr', tags ['a_verifier','photo_qr'], a completer).
+- NOUVELLE page mobile public/capture-facture/index.html (camera, multi-photos, envoi).
+- server.js : montage app.use('/api/compta-snap',...) + route page app.get('/capture-facture/:token').
+  BACKUP server.js + index.html (backups/*.bak-20260621_065812). node -c OK, pm2 reload OK.
+- index.html : pcTxQr() (bouton orphelin "Photo QR") branche -> modal pcOuvrirCaptureFacture()
+  (QR + suivi live par polling /status). + carte visible "QR Telephone" dans l'onglet Import.
+- TESTE END-TO-END (script jetable, user_id reel, nettoyage) : photo->PDF->Storage->insert OK.
+
+FAIT (Chantier B — notes & regles "URSSAF = forcement pro", 21 juin) :
+- Backend server.js : regles stockees dans documents_compta type 'regle_compta'
+  (fournisseur=mot_cle, sous_type='pro'|'perso', note_fiscale=note) — ZERO nouvelle table.
+  Endpoints GET /api/compta/regles, POST /api/compta/regle (upsert par mot_cle),
+  DELETE /api/compta/regle/:id. /api/analyser-releve charge les regles et applique
+  appliquerRegle() : si squash(mot_cle) dans squash(libelle) -> classe pro/perso (fait
+  autorite, ecrase la deduction auto), pose la note, et vaut acquittement (pas d'alerte,
+  exclu de documents_manquants).
+- Front index.html : bouton "⚙ Regle" sur chaque ligne orpheline -> formulaire inline
+  (mot-cle pre-rempli via pcNormLib, Pro/Perso, note) -> POST + application client immediate
+  a TOUS les mois charges (pcAppliquerRegleClient) + re-render. Badge "⚙ Pro/Perso (regle)"
+  + note dans les listes. Gestionnaire "⚙ Mes regles" (modal liste + suppression).
+  Filtre orphelines exclut desormais les lignes reglees. node -c OK, JS valide, pm2 reload OK.
+- Teste : endpoints 401 sans auth ; insert regle + matching squash (URSSAF->pro avec note) OK.
+
+FAIT (BUG persistance releves — etape 8, 21 juin) :
+- PROBLEME signale par le fondateur : apres analyse des releves janv->mai puis rechargement
+  de la page, tous les mois disparaissaient (_releveData = 100% en memoire navigateur,
+  releve jamais stocke). 
+- FIX : /api/analyser-releve persiste desormais l'ANALYSE (pas le PDF brut) sur le serveur
+  dedie France : uploads/releves-analyses/<userId>/<periode>.json (souverainete OK, rien ne
+  sort du serveur). Nouveaux endpoints GET /api/compta/releves (recharge) + DELETE
+  /api/compta/releve/:periode (retirer un mois). Front : pcChargerRelevesSauves() appele a
+  l'ouverture de l'onglet releve + apres analyse (union des mois) ; bouton "Retirer ce mois".
+- NB : les analyses faites AVANT ce fix ne sont pas sauvees -> le fondateur doit reanalyser
+  ses 5 releves UNE fois ; ensuite ils persistent.
+
+FAIT (frais bancaires auto-justifies, 21 juin) :
+- Fondateur : les lignes FORFAIT COM CB = commissions du terminal CB du cabinet (frais
+  bancaires pro, JAMAIS de facture separee, le releve est le justificatif).
+- /api/analyser-releve : map SANS_FACTURE { charges_sociales:'pro', impots:'perso' } ->
+  auto_justifie=true : jamais 'sans facture' (releve = justificatif), exclu alertes +
+  documents_manquants + orphelines, note + badge front par categorie. URSSAF/cotisations =
+  PRO deductible. IMPOTS (impot sur le revenu) = PERSO non deductible (confirme fondateur).
+  IMPORTANT : FORFAIT COM CB (frais terminal CB) RETIRE de l'auto-justifie -> le prestataire
+  envoie des factures (fondateur), donc charge pro NORMALE qui reclame sa facture (rapprochement
+  ou a attacher via QR/upload). Une regle fondateur reste prioritaire (override).
+
+FAIT (notes auto par ligne, 21 juin) :
+- /api/analyser-releve genere une note par transaction (tracabilite preuve de paiement) :
+  modePaiement(libelle) deduit virement/prelevement/cheque/carte/retrait. noteAuto() :
+  facture rapprochee -> 'Facture du <date> payee le <date releve> par <mode>' ; URSSAF ->
+  'Cotisation sociale payee le X par Y' ; impot -> 'Impot (personnel, non deductible) paye...' ;
+  recurrente -> '<fournisseur> paye le X par Y'. Champ mode_paiement ajoute. Front : note en
+  italique gris sous chaque ligne (pcRenderTxListe). Accents OK.
+
+FIX CRITIQUE (shadowing routes compta, 21 juin) :
+- BUG : 'Erreur : societe_id_manquant' au clic 'Memoriser la regle', ET le rechargement des
+  releves persistes echouait silencieusement. CAUSE : le routeur app.use('/api/compta', ...)
+  applique router.use(requireAuth()) qui exige une SOCIETE (requireSociete) avant de tomber
+  sur mes routes directes /api/compta/regle(s) et /api/compta/releve(s) -> interceptees.
+- FIX : routes sorties du prefixe -> /api/compta-regle(s) et /api/compta-releve(s) (comme
+  /api/compta-snap qui marche). Front index.html mis a jour. requireAuth (user only) suffit.
+- BONUS découvert : la periode d'un releve = mois DOMINANT (pas 1ere date) -> un releve de
+  mars commencant le 28/02 n'ecrase plus fevrier (5 releves = 5 fichiers). Refaire l'analyse
+  des 5 mois une fois (l'ancien fevrier avait ete ecrase par mars).
+
+FAIT (virement interne/perso = perso auto, 21 juin) :
+- /api/analyser-releve : estVirementPerso(t) -> si categorie 'mouvement_interne' OU 'perso'
+  dans le libelle => professionnel=false (jamais une charge du cabinet). Note + badge
+  '↔ perso (interne/perso)'. Une regle explicite du fondateur reste prioritaire (override).
+
+FAIT (transparence + correction des classements auto, 21 juin) :
+- Demande fondateur : le praticien doit VOIR ce qui a ete classe automatiquement (perso
+  ecartes, justifies) et pouvoir corriger ('non ca c'est pro').
+- Front pcRenderReleveDetail : section 'Classe automatiquement' listant les lignes perso_auto
+  + auto_justifie, avec raison + bouton 'Non, c'est Pro/Perso' -> pcCorrigerLigne ouvre le
+  formulaire de regle (pcRegleForm reutilisable) pre-rempli avec l'inverse, mot-cle EDITABLE.
+  pcMotCleLigne ameliore : evite les mots generiques (virement/prelevement) -> mot distinctif
+  (PERSO, URSSAF, DGFIP...). pcAppliquerRegleClient efface perso_auto/auto_justifie (la regle
+  explicite remplace le classement auto). Frontend pur (index.html).
+
+FAIT (Chantier C phase 1 — rapprochement loyers -> quittances SCI, 21 juin) :
+- /api/analyser-releve : charge les SCI du fondateur (user_societe_roles type sci). Pour chaque
+  debit dont le libelle contient le nom d'une SCI (ex 'LK Immo' -> squash 'lkimmo'), trouve la
+  quittance du mois+annee au montant proche (tol 2%) et la marque 'payee' (date_paiement = date
+  releve, preuve = le virement). Idempotent. Cote cabinet : loyer = pro, acquitte (document_trouve).
+  Mois sans quittance -> loyers_sans_quittance (signale 'a generer'). Payload : loyers_rapproches
+  + loyers_sans_quittance. Front : section 'Loyers rapproches a vos SCI' (marquees payees + mois
+  manquants avec lien /sci-dashboard). Donnees reelles : LK Immo, loyer 3000/mois, 5 quittances
+  (mars+avril 2026 manquantes). Teste matching read-only OK.
+FAIT (Chantier C phase 2 — generation auto des quittances manquantes, 21 juin) :
+- /api/analyser-releve : si un loyer est paye SANS quittance, on GENERE la quittance (locataire
+  matche par montant, sinon actif/premier ; numero via rpc next_numero ; statut 'payee',
+  date_paiement = date virement). Aucun email. Reversible cote SCI. quitsLocaux evite le
+  double-generation dans une meme analyse. Locataire LK Immo = b6464903 'karim bahmed ei'
+  (existait bien ; erreur de requete precedente). Teste : generation+cleanup OK (periode 2099).
+  loyers_rapproches porte 'genere:true' -> front affiche 'generee et marquee payee'.
+RESTE (Chantier C phase 3, optionnel) :
+- Idem pour factures_sci (autres clients factures, pas seulement loyer SCI). Verifier l'ecriture
+  compta_sci/compta_entries des 2 cotes lors du paiement.
+
+FAIT (Multi-societe compta — PHASE 1, 21 juin) :
+- MIGRATION SQL (fondateur via SQL editor) : documents_compta + colonne societe_id + index,
+  246 docs existants -> cabinet Precision Dentaire (c8fe3f0f...). Pas de DDL possible cote agent
+  (ni token Management ni exec_sql).
+- Backend : /api/analyser-releve, /api/compta-regle(s), /api/compta-releve(s), /api/compta-snap
+  acceptent societe_id (optionnel, repli legacy). Lecture documents_compta filtree par societe,
+  releves persistes en sous-dossier uploads/releves-analyses/<userId>/<societeId>/, regles et
+  factures capturees taguees societe_id. 5 analyses cabinet migrees dans le sous-dossier cabinet.
+- Front : selecteur de societe en haut de l'onglet Releve (pc-compta-societe, _comptaSocieteId,
+  defaut cabinet/localStorage), pcSocieteId() transmis a TOUS les appels compta. Changement de
+  societe -> recharge la vue de cette societe. La compta est cloisonnee par societe.
+FAIT (Multi-societe PHASE 2 — routing auto des factures scrapees, 21 juin) :
+- api/brain/mail-copilot.js rescan-compta : le prompt Claude extrait aussi 'destinataire'
+  (raison sociale du client). routerSociete(destinataire) matche (squash) contre les societes
+  du fondateur -> societe_id de la facture ; defaut = societe du compte mail. Insert
+  documents_compta avec societe_id + tag 'route_auto' si routee ailleurs que le compte.
+  => une boite mail partagee, chaque facture part dans la bonne compta. Teste sur 4 societes.
+RESTE (Multi-societe, finitions) :
+- Correction manuelle d'une facture mal routee (reassigner societe_id depuis 'Mes Factures').
+- Etendre le selecteur de societe aux onglets Factures/Annuel/TVA (relier comptaLoadFactures
+  au selecteur). Brancher la 2e boite Outlook tient deja : la connecter via l'ecran Boite mail,
+  les factures se routent par destinataire.
+
+FAIT (vue unifiee des boites mail, 21 juin) :
+- Outlook OAuth EN PROD : app Azure JADOMI (multi-tenant+perso) creee, MICROSOFT_CLIENT_ID/SECRET
+  en .env, table microsoft_oauth_tokens creee. Teste : karimrx59@hotmail.com connectee en 1 clic.
+- GET /api/compta-boites-mail : liste unifiee des 3 sources (comptes_email_societe IMAP +
+  microsoft_oauth_tokens + yahoo_oauth_tokens), dedup par email (garde l'OAuth). Front : panneau
+  'Mes boites mail' en haut de l'ecran Boite mail (pcChargerBoitesMail). Liens 'Ajouter un compte'
+  corriges (restent sur place au lieu de partir vers organisation.html).
+FAIT (lecture mails unifiee, 21 juin) :
+- GET /api/compta-mail/inbox?source=&email= : lit les 25 derniers mails d'une boite, TOUTES
+  sources : Outlook OAuth (XOAUTH2 via microsoft-oauth.imapConfigFor + getMicrosoftAccessToken),
+  Yahoo OAuth (getYahooAccessToken), IMAP (mail-copilot.decryptPassword+buildImapConfig exportes).
+  Front : chaque boite du panneau est cliquable -> affiche from/objet/date/PJ (pcVoirMails).
+  TESTE EN REEL : boite Outlook karimrx59 lue (65249 mails, XOAUTH2 OK).
+RESTE (client mail unifie) :
+- Brancher le SCAN factures sur les boites OAuth (Outlook/Yahoo) via XOAUTH2 + routing destinataire
+  (reutiliser imapConfigFor + l'analyse de rescan-compta). One-click Yahoo+Gmail : soumettre apps
+  a Yahoo/Google (Gmail OAuth a coder comme Outlook). Lire le CORPS d'un mail + actions (repondre).
+
+FAIT (recherche ciblee des factures manquantes, 21 juin) :
+- Idee fondateur : ne PAS scanner les 65k mails. Partir des prelevements SANS facture du releve
+  (Amazon, AliExpress...) et aller chercher EXACTEMENT ces factures dans les boites.
+- POST /api/compta-mail/retrouver-factures : pour chaque orpheline -> motCleMarchand(libelle)
+  (CB AMAZON->amazon, AMZN MKTP->amazon, aliexpress, sncf, ovh...), IMAP search {from:marchand,
+  since:date-10j, before:date+5j} sur la boite, extrait le PDF via Claude, verifie le montant
+  (tol 3%), insere documents_compta (societe_id, rapproche, source mail_cible). Boucle sur
+  toutes les boites connectees. Front : bouton 'Retrouver ces factures dans mes boites mail'
+  sur la section orphelines, rattache les lignes trouvees + re-render. Helper boiteImapConfig
+  (refactor inbox). node -c OK, deps mailparser/imapflow/anthropic OK, marchand teste.
+
+FAIT (nettoyage intelligent boite mail + fix token, 21 juin) :
+- POST /api/compta-mail/menage-analyse : scanne les 1000 derniers, propose UNIQUEMENT les pubs
+  (entete List-Unsubscribe) SANS piece jointe (jamais une facture), groupe par expediteur.
+  POST /api/compta-mail/menage-execute : DEPLACE vers la corbeille (special-use \\Trash, fallback
+  trash/corbeille/deleted), jamais de suppression definitive, apres accord. Front : bouton 🧹
+  par boite + modal (cases a cocher par expediteur). TESTE sur Hotmail : 300 scannes -> 182 pubs,
+  2 mails avec PJ proteges. CB2/Amazon/Booking/Netflix... detectes.
+- FIX _getFreshToken : repli sur window.jadomiMultiSocietes.token (corrige 'missing_token' du
+  panneau boites mail quand getSession() ne renvoyait rien).
+
+FAIT (SCAN INTELLIGENT UNIFIE, 21 juin) :
+- POST /api/compta-mail/scan-intelligent : lit le CORPS de chaque mail d'un paquet (500-700),
+  3 paniers via regex _SCAN (FACT/PROMO/PERSO/BULK) + IA pour les factures. FACTURE (PDF ou
+  corps : 'votre commande', 'reçu de paiement'...) -> extraite + rangee documents_compta (routee
+  societe par destinataire). PUB pure (List-Unsubscribe + BULK sender + PROMO + pas FACT) ->
+  liste apercu. PERSO/institutionnel (ecole/admin/sante/banque + tout sans signal) -> INTOUCHABLE.
+  Capture facture = ACTIVE (additif sur). Nettoyage = APERCU (menage-execute renvoie 403).
+  TESTE Hotmail 150 mails : 25 factures (PayPal/Amazon Chronodrive justes), 18 pubs (Kappa/Booking/
+  Trainline), 107 proteges (71%). Front : bouton 🔍 Scan par boite + modal resultat ; 🧹 = apercu.
+RESTE : reactiver le nettoyage (menage-execute) APRES validation protocole + dossier dedie vs
+corbeille ; pagination du scan sur les 65k ; Gmail OAuth ; brancher scan sur boites IMAP via le bouton.
+
+FAIT (vrai client mail + fix Yahoo, 21 juin) :
+- GET /api/compta-mail/message?source=&email=&uid= : contenu complet d'un mail (from/subject/
+  date/html/text/attachments) via boiteImapConfig + simpleParser.
+- Front : clic sur une boite -> modal plein ecran (pcOuvrirMailClient) : cards mails (avatar
+  initiale coloree, expediteur/objet/date/PJ) ; clic mail -> lecture en grand (HTML en iframe
+  sandbox='' = pas de JS, ou texte). Style theme (--surface/--accent indigo). Remplace l'ancien
+  deroulant etrique.
+- FIX dedup boites : rang outlook(3)>imap(2)>yahoo-oauth(1). Yahoo OAuth ne LIT PAS les mails
+  (scope non approuve) -> on garde l'IMAP Yahoo (mot de passe) qui marche. Corrige 'Command failed'.
+
+FAIT (MODULE MAIL dedie, 21 juin) :
+- Le mail sort de la compta : nav-item '📬 Mail' (apres Comptabilite) + page-mail (showPage('mail')
+  -> pcMailModuleInit -> pcChargerBoitesMail('pc-mail-boites')). titles.mail='Mail'. La page
+  contient : boutons Connecter Outlook (OAuth) / Connecter une boite (renvoie au form compta),
+  + le client mail unifie (boites cliquables -> modal lecture). pcChargerBoitesMail(targetId)
+  parametree pour servir compta ET le module Mail. Le SCRAPING factures reste en compta (le
+  scan alimente documents_compta). Acces aux mails = module Mail ; factures = compta.
+
+FAIT (Copilot mail : reponse IA + dictee vocale, 21 juin) :
+- POST /api/compta-mail/draft (Claude redige une reponse FR vouvoiement a partir de l'email +
+  consigne optionnelle) et /api/compta-mail/reply (envoi SMTP : boiteSmtp gere Outlook OAuth
+  XOAUTH2 smtp.office365.com + IMAP password via SMTP_CONFIGS/custom_host, Hostinger 465 SSL).
+  Envoi UNIQUEMENT sur clic explicite (regle 'jamais envoyer sans valider').
+- Front : dans la lecture d'un mail, bouton '✍️ Repondre' -> composer (textarea + '✨ Brouillon IA'
+  + '🎙️ Dicter' via Web Speech API fr-FR + 'Envoyer'). _mailCourant stocke le contexte. Le
+  fondateur voit/modifie le brouillon avant d'envoyer.
+
+FAIT (mail multi-dossiers : Spam/Envoyés/Corbeille, 21 juin) :
+- /api/compta-mail/inbox & /message acceptent ?folder=inbox|spam|sent|drafts|trash ;
+  resoudreDossier(client,type) mappe via special-use (\\Junk/\\Sent/\\Trash/\\Drafts) +
+  fallback nom. /api/compta-mail/folders liste les dossiers dispo. Front : onglets dans le
+  client (pcRenderMailTabs/pcChangeFolder/pcChargerDossiers). Teste Hotmail (Junk/Sent/Deleted).
+RESTE (mail V2, demande fondateur) :
+- PROGRAMMER des envois (mail differe) : table + cron + UI date/heure.
+- UI client mail : le fondateur n'aime pas la 'card qui s'ouvre' (modal) -> vue pleine page
+  (liste + lecture en panneau) plutot qu'un modal.
+- 'et bien plus' : recherche dans les mails, marquer lu/non-lu, supprimer, pieces jointes telechargeables.
+
+RESTE :
+- Chantier C : rapprochement releve <-> factures EMISES. VIR LOYER LK IMMO (SCI, module
+  api/multiSocietes/sci.js, table factures_sci + PATCH /factures/:id/paiement deja existant)
+  -> marquer la facture SCI 'payee' par virement a la date du releve (preuve = le virement),
+  des deux cotes (LK IMMO encaisse + cabinet charge). Generique pour tous les locataires/clients.
+- AMELIORATION possible etape 7 : extraction IA locale (fournisseur/montant/date) de la photo.
+
+### BUILDER DE SITE — VALIDE BOUT EN BOUT (29 juin 2026)
+Conception de site prouvee de bout en bout sur le vrai serveur (port 3001, vrai token, vraie BDD).
+- services/theme-resolver.js (NOUVEAU) : traduit un CODE GALERIE (ce que l'UI envoie, ex
+  'expert-dentiste-v2') vers un THEME REELLEMENT GENERABLE (dent_expert_scroll) -> le site
+  publie = le design choisi. Mapping TEMPLATE_TO_THEME (dentaire + avocat). Utilise par
+  /creer ET /changer-theme. RESTE : porter les vrais designs distincts dent_expert_v1/v2/full
+  (aujourd'hui ils retombent tous sur dent_expert_scroll) + metiers kine/beaute/BTP/immo.
+- api/studio/sites-jadomi/index.js : resolution du theme dans /creer ; upload-video (multer 600 Mo
+  + compression ffmpeg H.264/1080p/CRF24/faststart/sans-audio, teste 504 Ko -> 29 Ko) ;
+  upload-photo-pre (pre-creation, servie via /uploads).
+- services/site-generator.js : generation MULTI-PAGES (dossier pages/ du theme rendu avec les
+  memes donnees) ; dent_expert_scroll & law_expert_scroll = 6 pages chacun.
+- api/studio/stripe-checkout.js : bypass admin (creation gratuite sans Stripe pour ADMIN_EMAIL).
+- api/studio/ovh-{dns,domain},site-orchestrator.js : VPS_IP -> 217.182.132.136 (serveur dedie).
+- TESTS DE NON-REGRESSION : scripts/test-builder-e2e.js (2 scenarios : avocat direct +
+  code galerie dentaire -> multi-pages 6/6 + 0 placeholder + design choisi=publie) et
+  scripts/test-upload-e2e.js (compression video + photo). Tous VERTS. Nettoyage auto.
+- PROCHAIN CHANTIER (demande fondateur) : ameliorer les templates existants / en ajouter.
+
+### MODULES VIVANTS — Plomberie + Chatbot souverain (29 juin 2026)
+Les modules du builder ne s'activaient JAMAIS (siteData.modules = coquille vide). Desormais
+selectionner un module l'ACTIVE reellement sur le site genere.
+- services/site-generator.js : buildModulesSnippet/injectModules — injecte le widget des modules
+  (chatbot) dans index.html ET chaque page multi-pages, avant </body>. Additif (0 module = inchange).
+- api/studio/sites-jadomi/index.js : POST /:id/modules — persiste la liste dans la section 'modules'
+  (+ config chatbot : greeting adapte au metier) puis regenere le site.
+- public/studio/mon-site/builder.html : finishModules() POST reellement les modules ; etape Modules
+  reformulee avec la VALEUR concrete (le "pourquoi") ; chatbot = actif, agenda/visio/paiement/blog = "bientot".
+- CHATBOT SOUVERAIN (api/vitrines/chatbot-public.js) :
+  * OLLAMA local d'abord (qwen3.6, 127.0.0.1:11434) via lib/ia-router, Claude en SECOURS.
+  * PAR PROFESSION : PROFESSION_GUIDE (avocat/dentiste/ortho/prothesiste/sante) — role + ligne rouge
+    (avocat = jamais de conseil juridique ; dentiste = jamais de diagnostic).
+  * ANTI-JAILBREAK : JAILBREAK_PATTERNS -> reponse cadree, pas de fuite de prompt ("pas de clients qui s'amusent").
+  * resolveCabinet() : marche pour vitrines_sites ET sites_jadomi (builder). Contournement FK :
+    vitrine_chatbot_configs/conversations sont verrouillees par FK sur vitrines_sites -> pour un site
+    builder, la config est lue dans la section 'modules' et les conversations sont en MEMOIRE process
+    (zero modif schema). Les sites vitrines gardent leur comportement DB inchange.
+- TEST : scripts/test-chatbot-modules-e2e.js = 8/8 VERT (creation -> activation -> widget injecte ->
+  config -> reponse Ollama cadree au cabinet -> jailbreak bloque -> nettoyage).
+- RESTE modules : Agenda avocat (enrichir module juridique existant : conflit d'interets + qualif domaine
+  + RGPD + echeances ; recherche faite), Visio (reutiliser /api/visio WebRTC natif), Paiement (Stripe
+  Connect marketplace client->JADOMI->pro deja amorce server.js), Blog. + reordonner les questions du builder.
+
+### AGENDA AVOCAT — deontologie (29 juin 2026)
+Enrichit le module juridique EXISTANT (pas appointment_types). Migration 07 appliquee par le fondateur.
+- sql/juridique/07_agenda_avocat.sql : +colonnes juridique_reservations (domaine_droit, nature,
+  qualite_client, partie_adverse, dossier_id, premier_rdv, echeance, consentement_rgpd, consentement_at,
+  conflit_flag) + statut 'en_attente_verification' ; +offres (nature, paiement, pieces_a_apporter) ;
+  +dossiers (partie_adverse, juridiction, numero_rg). 100% additif (IF NOT EXISTS).
+- api/juridique/conflit.js (NOUVEAU) : verifierConflit(profilId, clientNom, partieAdverse) croise
+  client/partie adverse avec dossiers + reservations du cabinet (ilike sur jeton principal).
+- api/juridique/public.js (reserver) : pour un AVOCAT, domaine_droit + consentement_rgpd OBLIGATOIRES ;
+  si conflit -> RDV GELE (statut en_attente_verification, conflit_flag, AUCUN paiement Stripe) + mail
+  d'alerte a l'avocat ; sinon flux normal + champs avocat + consentement_at trace.
+- public/expert/index.html : formulaire + champs (domaine, nature, partie adverse, case RGPD) ;
+  FIX chemin (/api/juridique/public/reserver) + FIX date_rdv/heure_rdv (la date du RDV etait perdue) ;
+  gestion ecran "demande en cours de verification".
+- TEST : scripts/test-conflit-avocat-e2e.js = 9/9 (conflit -> gele sans paiement ; RGPD/domaine requis ;
+  RDV normal -> paiement + consentement trace). Nettoyage auto.
+- RESTE agenda (bonus) : echeances procedurales J-30/J-15/J-7, pieces a apporter par domaine, badge
+  "conflit a verifier" sur public/juridique/agenda.html.
+
+### MODULE VISIO — modele DASHBOARD (30 juin 2026, commits 9f15d5f puis CORRECTION 0d039ab)
+DECISION FONDATEUR (a retenir) : la visio N'EST PAS un bouton public sur la vitrine. Un praticien
+n'est pas un standardiste -> un bouton public = demandes intempestives non sollicitees. La visio se
+PILOTE depuis le DASHBOARD praticien : il cree une consultation et envoie le lien au patient/client
+de SON choix. Ce modele EXISTE DEJA : dentiste (public/admin/dentiste-pro.html lancerVisio() ->
+POST /api/visio/rooms authentifie -> lien copie/envoye par email) et avocat (api/avocat/visio.js +
+public/avocat/dashboard-v2.html ; consultation payante via JADOMI deja construite).
+- PREMIER JET (9f15d5f) ERRONE puis ANNULE (0d039ab) : bouton public sur la vitrine + endpoint public
+  POST /api/visio/public/site-room + widget public/vitrines/visio-widget.js + injection generator.
+  TOUT RETIRE (le widget public, l'endpoint = vecteur d'abus, l'injection). builder.html : module visio
+  reformule "depuis votre tableau de bord, vous lancez et envoyez le lien au patient (aucun bouton public)".
+- FIX CONSERVE (vraie correction, repare la visio AVOCAT) : api/juridique/index.js enregistrait
+  app.get('/visio/:token') en index.html pour TOUS les tokens, masquant la route canonique server.js:1598.
+  Les tokens 'jadomi-' (avocats via api/avocat/visio.js) n'avaient donc JAMAIS la page P2P native WS
+  (index.html exige une session DB via /rooms/join, absente cote avocat). Desormais : jadomi- ->
+  public/visio/jadomi-visio.html (signaling WebSocket /ws/visio, P2P pur sans DB), autres tokens ->
+  index.html inchange (additif). jadomi-visio.html lit ?name (defaut neutre "Praticien").
+- ARCHI page native : une room = token partage dans l'URL ; jadomi-visio.html = P2P via WebSocket
+  /ws/visio (lib/visio-signaling.js), sans session DB. Le dashboard dentiste utilise lui POST /rooms
+  (token uuid -> index.html riche PDF/fichiers + session DB) : inchange.
+- TEST : scripts/test-visio-modules-e2e.js = 10/10 (GARDE-FOU aucun widget public injecte + endpoint
+  public 404 + POST /api/visio/rooms exige auth + routing jadomi-/legacy + signaling P2P 2 pairs).
+- RESTE modules : paiement marketplace (Stripe Connect, reglementaire), blog.
+
+### BUILDER — reordonner les questions (30 juin 2026, commit 9de8c21)
+Ordre illogique corrige (demande fondateur) : on demandait Video/Photos AVANT de savoir qui
+vous etes. Nouvel ordre : Template -> Infos -> Textes(services/approche) -> Video (SEULEMENT si
+le theme a un fond video) -> Photos -> Modules -> Publication.
+- public/studio/mon-site/builder.html : STEPS reordonne ; askStep() passe d'un switch indexe par
+  NUMERO a un dispatch par STEPS[i].id (l'ordre ne depend plus que du tableau -> robuste, on ne
+  jongle plus avec des numeros). goToStepId() remplace advanceStepTo(4) code en dur.
+- themeHasVideo() : saute l'etape Video si le theme n'a pas de fond video. Liste = verite terrain
+  (templates/themes/<code> avec balise <video>) + filet heuristique (video|scroll|parallax|
+  walkthrough|immersive|cinema|particles|exploded|room_3d). Ex : law_clean/dent_clinical_white =
+  pas de video ; dent_expert_scroll/law_immersive_parallax = video.
+- Site cree en fin d'Infos (comme avant) ; Video/Photos venant desormais APRES, leurs uploads
+  PERSISTENT en live (updateSiteSection hero.video / hero.photo + showRealPreview), + filet
+  createRealSite avant l'etape Modules. Uploads toujours pre-creation (upload-video/upload-photo-pre,
+  sans site_id) si le site n'existe pas encore.
+- TEST : scripts/test-builder-order-e2e.js (Playwright, pilote le vrai chat, session injectee) = 6/6 :
+  theme video -> infos->textes->video->photos ; theme sans video -> Video SAUTEE. Non-regression
+  generation (scripts/test-builder-e2e.js) : OK (multi-pages 6/6, video OK).
+
+### Session 9 juillet 2026 — MODULE EQUIPE : cerveau secretaire + connexion Doctolib autonome
+Suite du module Equipe (dash equipe dentaire, moteur de journee branche sur l'agenda).
+Voir memoire project_dash_equipe_journee + project_hub_agenda_apis pour le detail.
+
+SAVOIR METIER ENRICHI (commit f5f4bd4) : lib/equipe/savoir-metier.js. SAVOIR_SECRETAIRE
+reecrit sur recherche verifiee (24 faits, sources primaires ameli/Legifrance/CCAM ATIH) :
+FSE/SESAM-Vitale, NOEMIE=RSP vs ARL, mode degrade (papier blanc), REFORME tiers payant EBD
+60/40 du 1er avril 2025, devis normalise Annexe III, 100% Sante. SAVOIR_CCAM enrichi
+(structure AAAANNN, association code 4, cotations a risque avulsions/curetage/endo). Tarifs
+dates et indicatifs, jamais inventes. + Alertes proactives dans /team/journee.
+
+CONNEXION DOCTOLIB AUTONOME (commits 074ef69, 773a527, 0954cc9, 2d7331e) :
+- Verdict recherche (5 agents) : AUCUNE API Doctolib, AUCUN flux iCal natif. La seule voie =
+  compte collaborateur delegue dedie, pilote en session navigateur authentifiee (2FA obligatoire).
+  C'est ce qu'utilisent les 350+ telesecretariats partenaires. Cap long terme = FHIR GAP.
+- PONT lib/connector/pont-agenda.js : RDV connecteur (motif texte) -> dentiste_pro_agenda
+  (categorie via resolveCategorie -> assistance deduite). Dedup applicatif, n'ecrase jamais un
+  RDV manuel. Teste e2e sur cabinet reel Precision Dentaire (societe->cabinet 22227205).
+- GUIDE public/equipe/connexion-doctolib.html (lien depuis composer) : pas-a-pas
+  (Parametres>Comptes Doctolib, adresse JADOMI), statut live.
+- ONBOARDING lib/connector/doctolib-onboard.js : repere le mail d'invitation Doctolib dans la
+  boite JADOMI (IMAP lecture seule) + extractActivationLink (teste). Config .env requise :
+  DOCTOLIB_INBOX_EMAIL/_PASSWORD.
+- SESSION lib/connector/doctolib-session.js : login compte JADOMI + relais 2FA (mise en attente,
+  code colle une fois) + storageState persiste (uploads/doctolib-sessions, GITIGNORE) reutilise
+  sans re-login. readAgenda via session -> pont. Endpoints team.js /doctolib/status /scan /login
+  /2fa /sync (requireCabinet, GARDES : ne touchent Doctolib que sur clic fondateur).
+- RESTE : 1re activation LIVE = clic fondateur (validera selecteurs 2FA reels). Puis brancher la
+  sync sur le moteur. On reprend a la maison.
+
+### Session 10 juillet 2026 — EQUIPE : lien secretaire factures (UX) + scan TOUJOURS dans le dash
+Suite du module Equipe. Voir memoire project_dash_equipe_journee + project_compta_integrite.
+
+M5 — REFONTE LIEN SECRETAIRE (public/capture-facture/index.html) : la page de scan n'est plus un
+pave de factures. Cartes MENSUELLES repliables (le mois courant ouvert, le reste plie), RECHERCHE
+par nom (accent-insensible), carte dediee « Autre facture a photographier » pour tout ce qui n'est
+pas encore dans la base. But rappele par le fondateur : ranger dans le module compta les factures
+ABSENTES de la base (prelevements sans justificatif). Backend inchange (/upload /manquantes /:token).
+Fix : boite de succes vide (okmsg partait en class "msg ok" -> display:block) corrigee.
+
+SCAN FACTURE TOUJOURS A PORTEE (demande fondateur : « ce lien / ce QR doit toujours etre dans le
+dash assistante et secretaire ») :
+- Backend GET /api/compta-snap/team-link (api/compta-snap/index.js) : tout MEMBRE d'une societe
+  recupere LE lien permanent DU PROPRIETAIRE de la compta (resolution du proprietaire via
+  user_societe_roles, cloisonnement a la societe de l'appelant). Cle : l'upload classe sous
+  documents_compta.user_id = proprietaire, donc les factures tombent dans la compta du DENTISTE,
+  jamais celle de la secretaire. Idempotent (reutilise le lien existant). Lecture seule pour
+  l'equipe ; creation/revocation restent au proprietaire (create-permanent / revoke-permanent).
+  L'endpoint create-permanent etait ORPHELIN (aucune UI ne l'appelait) -> le lien n'etait visible
+  nulle part, d'ou la demande.
+- Front public/equipe/ma-journee.html : bouton fixe « Scanner une facture » (toujours present) +
+  fiche QR + lien copiable + « Ouvrir sur ce telephone ». Charge via team-link au demarrage.
+  Teste Playwright (fab + fiche OK, 0 erreur console) ; endpoint 401 sans auth.
+- RESTE (envoye par mail au fondateur) : rebrancher le scan OCR sur le routeur souverain ouvert
+  (aujourd'hui Mistral/Claude en dur, cf feedback_architecture_ouverte) ; modules RH M1-M4 ;
+  1re activation LIVE Doctolib (clic fondateur + contact partenariats).
+
+### Session 16 juillet 2026 — Scan factures souverain + Prix negocies (socle "mieux que Minti")
+
+POINT #1 — SCAN OCR FACTURES = 100% ROUTE (architecture ouverte, 0 provider en dur). Commit 0017193.
+- Constat : le fichier cite dans la reprise (api/copilot/scan-factures-sse.js) etait MORT (require nulle part).
+  Le vrai chemin de prod = POST /api/brain/mail/scan-factures -> fork lib/workers/scan-factures-worker.js,
+  qui appelait Claude EN DUR (en double : scanApiMode + scanDaemonMode) + pre-tri Mistral en dur.
+- Fix : SOURCE UNIQUE lib/compta/analyse-document.js (extraction fidele de analyserDocumentIA de server.js
+  + etape cloud EU Mistral que l'ancienne cascade sautait). Cascade routee via pickChain(node-registry) :
+  RTX cabinet -> serveur France Ollama -> cloud EU Mistral -> Claude US (dernier recours). dataClass 'business'
+  (choix fondateur : facture = donnee business, cloud EU puis US en secours, jamais bloquant).
+- server.js dedup (-236 lignes inline), worker + sse rebranches. Teste e2e : facture GACD lue EN LOCAL
+  (france-ovh ollama), gratuit, 28s, HT/TVA/TTC/produits corrects. Backup backups/server.js.bak.point1.
+
+POINT #2 — DOCTOLIB SELF-CONNECT : deja fait a ~90% (analyse en profondeur). Ecran public/equipe/connexion-doctolib.html
+  -> /api/dentiste-pro/team/doctolib/* (par societe), session persistee disque + relais 2FA (lib/connector/
+  doctolib-session.js), mot de passe JAMAIS stocke (plus sur que chiffre). Fix schema : sql/79_connector_fix.sql
+  APPLIQUE par le fondateur (adapter_type 'doctolib'/'doctolib_ical' + statuts + colonne last_sync). Commit e33184b.
+  DECISION fondateur : NE PAS auto-loguer (risque blocage) -> passer par le PARTENARIAT OFFICIEL Doctolib Connect
+  en tant qu'EDITEUR, seulement avec de la traction. Message de contact prepare (pas envoye, trop tot). Voir
+  memoire project_doctolib_secretaire (a jour). Doctolib N'EST PAS la priorite ; connexion = dernier maillon,
+  archi connecteur generique deja prete a recevoir toute source (Doctolib API / Google Cal / CalDAV / FHIR).
+
+MODULE COMPARATEUR "MES PRIX NEGOCIES" (modele Minti, en mieux) — ETAPE A (socle) construite + testee :
+- Analyse en profondeur : le comparateur PUBLIC (scraped_prices, 252892 prix, 25 fournisseurs) + le regroupement
+  produits (product_clusters + cross-matcher IA + RAG) EXISTENT. L'infra prix-par-cabinet (supplier_prices avec
+  price_catalog/price_negotiated/societe_id, moteur services/invoice-matcher.js, insights, panier) EXISTE mais
+  etait VIDE (jamais alimentee) et les endpoints /economies /benchmark lisaient des colonnes FANTOMES
+  (price_ht/category/best_market_price absentes).
+- Commit 03b3fee : extraction locale (analyse-document PROMPT_LOCAL) enrichie -> sort les lignes produits
+  (designation/reference/quantite/prix HT+TTC) + code_client. Le worker de scan mail appelle desormais
+  matchInvoiceToProducts -> chaque facture nourrit supplier_prices (prix negocies reels du cabinet). Teste e2e.
+- Commit ffa7489 : nouvel endpoint GET /api/achats/comparateur-cabinet (lit les VRAIES colonnes) -> pour chaque
+  produit achete, compare le prix du cabinet au meilleur prix connu tous cabinets (intelligence collective) et
+  designe le moins cher + l'economie. Logique testee (20e vs 15e -> -25%). LIVE (401 sans token).
+- VISION fondateur clarifiee : se connecter a TOUS ses comptes fournisseurs -> voir le moins cher direct ->
+  NEGOCIER. Voie sure = EXTENSION navigateur (lit le prix negocie depuis la session ouverte, 0 mot de passe
+  stocke, POC Henry Schein existe dans extension/) et NON stockage d'identifiants (risque blocage, lecon Doctolib).
+  Moat vs Minti = donnees collectives -> alertes "negociez" (deja codees) + achat groupe multi-cabinets.
+
+RESTE (prochaine session) :
+1. ETAPE B : extension navigateur multi-fournisseurs + relais backend (connexion comptes -> prix negocies en direct).
+2. NEGOCIATION : alertes "negociez -X%" + achat groupe a paliers (patron mu-plugin dental-groupbuy-pro existe).
+3. Doctolib : 1re activation LIVE + contact partenariats (quand traction). Modules RH M1-M4. Dedup retroactive compta.
+4. Bug pre-existant : services/invoice-matcher.js generateCheapestBasket lit p.societe_id non selectionne (currentPrice toujours undefined).
+
+===============================================================
+PASSE 17 JUILLET 2026 -- ECRAN COMPARATEUR + DECOUVERTE "IDENTITE PRODUIT"
+===============================================================
+
+FAIT (commit 07a6d4d) -- ECRAN "Comparateur de mes prix" (PRIORITE 1 du plan de reprise) :
+- public/admin/js/tab-comparateur-prix.js (NOUVEAU) : module d'onglet IIFE (patron tab-patients.js),
+  expose window.JADOMI_PRO.renderComparateurPrix. Par produit : mon fournisseur / mon prix / le moins
+  cher / meilleur prix / mon economie + badge "Negociez chez X". 4 KPIs (economie potentielle, produits
+  compares, a negocier, au meilleur prix). Etats vide + erreur + cabinet non configure.
+- public/admin/dentiste-pro.html : 5 insertions PUREMENT ADDITIVES (sidebar GESTION CABINET, conteneur
+  #tab-comparateur-prix, <script>, entree titles, lazy-render dans switchTab). server.js NON modifie
+  (l'endpoint existait deja et etait LIVE). Backup backups/dentiste-pro.html.bak.20260717-073119.
+- 2 pieges d'archi contournes : (a) apiFetch() prefixe '/api/dentiste-pro' EN DUR -> inutilisable pour
+  /api/achats/* ; (b) /api/achats/* lit la societe dans le QUERY param, pas dans X-Societe-Id, et
+  req.user.societe_id est TOUJOURS undefined -> sans ?societe_id= la route renvoie 400 systematiquement.
+- Teste e2e Playwright : 3 etats (peuple/vide/erreur) + 1 passe sur les VRAIES donnees avec un vrai jeton
+  (magiclink genere via service_role, aucun email envoye) => 4 produits Septodont affiches, 0 erreur JS,
+  charge XSS de facture echappee, IDOR 403 sur une autre societe, 400 sans societe_id.
+
+DECOUVERTE MAJEURE -- le moteur affichera 0 EUR d'economie tant que l'IDENTITE PRODUIT n'est pas resolue :
+- Etat reel de supplier_prices AUJOURD'HUI : 4 lignes, 1 seule societe (Precision Dentaire c8fe3f0f),
+  1 seul fournisseur (Septodont). => aucune intelligence collective possible, il n'y a qu'un cabinet.
+- PLUS GRAVE (structurel) : services/invoice-matcher.js:195 fait `let gtin = ref` (la reference imprimee
+  sur la facture) ; si aucun match dans products_database, il CREE le produit avec ce gtin (ligne 251-259).
+  Resultat en base : gtin = '11675', '11676', '10584G' -> ce sont des REFERENCES INTERNES FOURNISSEUR,
+  pas des codes-barres (un vrai GTIN fait 13-14 chiffres). Mesure : longueurs observees = 5 et 6 chars,
+  et 0 gtin partage par plusieurs societes.
+- Or /api/achats/comparateur-cabinet compare par `.in('gtin', chunk)`. Deux fournisseurs vendant le MEME
+  produit ont des references DIFFERENTES -> jamais le meme "gtin" -> comparaison impossible. Meme avec
+  1000 factures scannees, chaque produit restera "je suis le moins cher" a 0 EUR.
+- LE PONT EXISTE DEJA : product_clusters (5646 clusters) + cross-matcher IA + RAG, construits pour le
+  comparateur PUBLIC (memoire project_comparateur_pipeline_etat). La vraie suite = comparer par
+  cluster_id, pas par gtin (cote invoice-matcher a l'ecriture et/ou cote endpoint a la lecture).
+- => NOUVELLE PRIORITE 1 avant l'extension navigateur : sans identite produit, l'extension ne fera
+  qu'alimenter plus vite une base qui ne compare rien.
+
+### Session 17 juillet 2026 — VAGUE 2 BUSINESS + INVERSION SHADE (commit 0abf844)
+
+FIN DES PROVIDERS IA EN DUR. Les 4 derniers fichiers cites dans le "RESTE" de la cascade souveraine
+passent par le routeur : routes/labo/stock.js (4 appels), api/multiSocietes/commerce.js (3),
+api/showroom/produits.js (1), routes/labo/shade.js. Verifie AVANT de coder : les 4 sont bien VIVANTS
+en prod (montes via routes/labo/index.js, api/showroom/index.js, api/multiSocietes/index.js) — lecon
+du scan-factures-sse.js mort.
+
+SOCLE — lib/ia-router.js :
+- sovereignJson(system, user, {dataClass, images, minConfidence, confidenceField, numCtx, maxAttempts})
+  = extraction JSON + ESCALADE SUR CONFIANCE (choix fondateur). Le noeud local repond d'abord (gratuit) ;
+  si le JSON est illisible OU s'auto-evalue sous le seuil, on relance sur le noeud SUIVANT au lieu
+  d'accepter un resultat faible. Les cas faciles ne coutent rien, les cas durs gardent la qualite cloud.
+  Retourne {json, confidence, nodeId, tier, sovereign, escalated, attempts[]} — attempts = tracabilite
+  du parcours reel (indispensable pour prouver l'absence de fuite).
+- opts.excludeNodeIds + opts.numCtx sur sovereignText/sovereignVision (ADDITIFS, zero impact appelants).
+- PROUVE EN REEL (3 cas) : (A) cas facile "GACD" => france-ovh SEUL, conf 0.85, 12,8s, 0 EUR ;
+  (B) seuil impossible => parcours france-ovh -> cloud-mistral -> cloud-claude (l'escalade marche) ;
+  (C) dataClass 'sensitive' + seuil impossible => france-ovh UNIQUEMENT, le cloud n'est jamais atteint.
+  La souverainete ne depend pas d'un if mais de la chaine pickChain : l'escalade ne PEUT pas fuir.
+
+BUSINESS (economies, donnees non patient) :
+- stock.js : code-barres (seuil 0.4), peremption VISION (0.7), fournisseur (0.6), photo-identify OEM
+  VISION (0.7). Seuils NON cosmetiques : products_database et suppliers_directory sont PARTAGES entre
+  cabinets — une fiche inventee par un modele faible les pollue pour TOUS. enriched_by = vrai nodeId
+  (etait 'claude_haiku' en dur). Gardes ANTHROPIC_API_KEY (503) retires : le local n'a pas besoin de cle.
+- commerce.js : num_ctx elargi a 64k car 80 Ko de HTML scrape depassaient le contexte 16k par defaut et
+  etaient tronques EN SILENCE (= liste de produits incomplete = prix manquants, degradation invisible).
+  Les PDF sont desormais extraits en LOCAL via pdf-parse (Ollama n'ingere pas un PDF brut, contrairement
+  au bloc 'document' d'Anthropic) puis routes en texte — meme patron que lib/compta/analyse-document.js.
+  PDF scanne sans texte => 422 honnete ("envoyez une photo ou un CSV") au lieu d'un echec obscur.
+- showroom/produits.js : sortait encore d'un claude-3-haiku-20240307 (modele de 2024).
+
+SHADE — INVERSION (decision fondateur, meme principe que radio-plan) :
+- CONSTAT : routes/labo/shade.js n'etait PAS du business. Il telechargeait les PHOTOS CLINIQUES du
+  patient (labo_shade_photos) et les envoyait a claude-sonnet-4-6 AUX USA pour DEVINER la teinte.
+  Donnee de sante hors UE — rescapee de la vague 1 parce que rangee du cote "labo/stock" et pas
+  "patient". La classification "business" du plan de reprise etait donc fausse (verifiee sur le code).
+- Objection clinique du fondateur (dentiste) : "aucun interet d'envoyer une IA pour dire quelle teinte".
+  Fondee : une teinte se releve au teintier ou au spectrophotometre (VITA Easyshade, instrument CALIBRE).
+  Une photo de telephone (balance des blancs inconnue, eclairage) ne tranche pas A2 vs A3 — le prompt
+  demandait d'ailleurs a l'IA de rattraper le "cast couleur", aveu de la faiblesse.
+- USAGE REEL VERIFIE EN BASE : labo_shade_cases = 0 ligne, labo_shade_photos = 0 ligne. Jamais utilise.
+- APRES : POST /cases/:id/analyser exige `releve_teinte` (400 sinon). L'IA STRUCTURE le releve du
+  praticien (prompt calque sur SYS_STRUCTURER de radio-plan : zero invention, zone non relevee => null,
+  ambigu => "(a preciser par le praticien)"), en dataClass 'sensitive' => RTX/France uniquement.
+  L'IA n'ouvre JAMAIS la photo ; les photos restent pieces de reference du dossier.
+- TESTE : releve incomplet ("A2 dominant, cervical A3, corps A2, rien sur le bord incisif") =>
+  incisif null, translucidite null, texture null, A2/A3 respectes, manques listes dans points_a_preciser.
+  Zero invention. 25s sur france-ovh (CPU), gratuit.
+- FRONT public/labo/shade.html aligne : champ "Releve de teinte au teintier" (dictable) + bouton
+  "Structurer mon releve" (ne depend plus de la presence d'une photo).
+
+2 BUGS PRE-EXISTANTS CORRIGES AU PASSAGE :
+1. commerce.js : le regex d'extraction JSON etait NON-GOURMAND (/\{[\s\S]*?\}/) => sur
+   {"produits":[{...}]} il s'arretait au premier '}' et rendait du JSON invalide => 422 a tort.
+   _extractJson (gourmand) corrige les 2 endpoints d'import.
+2. public/labo/shade.html affichait des champs MOCKES que le back n'a jamais ecrits (teinte_ia,
+   confidence, zones_analysees, notes_ia) — invisible car 0 cas en base. Rebranche sur les vraies
+   colonnes (teinte_finale, analyse_ia) ; le panneau "Analyse IA - Zones detectees" (mensonger apres
+   l'inversion) devient "Teinte relevee au teintier" ; stats "Confiance moyenne %" => "Releves structures".
+
+RESTE (cascade souveraine) :
+- avocat/enquete-interne.js + moteur-strategique.js : deja Mistral EU (RGPD-ok), full-local plus tard.
+- api/brain/mail-copilot.js : parsing facture (business) — non traite cette passe.
+- NE PAS toucher : vitrines/*, studio/*, ai-studio/* (contenu public marketing => cloud legitime).
+- Brancher la RTX du cabinet dans le mesh = tier 0 => vision rapide + tout local (le serveur France
+  couvre deja tout le monde sans RTX, mais la vision CPU est lente : ~25s texte, plus en vision).
+
+### Session 17 juillet (suite) — LA RTX ETAIT BRANCHEE POUR RIEN (commit 987ff7c)
+
+CONTEXTE : le fondateur a lance `irm jadomi.fr/cf.ps1?v=4 | iex` sur PC10 -> tache heartbeat
+PERMANENTE creee, noeud `cabinet-10-10-0-4` (RTX 2070) en tier 0, up, souverain. L'exe etait
+DEJA installe (C:\Program Files\JADOMI Cabinet\) : seule la tache planifiee du heartbeat
+n'avait jamais tenu (bug schtasks corrige le 1er juillet, jamais rejoue sur ce poste).
+
+PUIS TEST DE BOUT EN BOUT (demande du fondateur : "voir si c'est fiable") -> BUG DE FOND.
+- Le modele par defaut du code (ia-router: qwen3.6:35b-a3b) est celui du SERVEUR FRANCE.
+  La RTX a qwen2.5:7b / qwen2.5vl:7b. On lui demandait un modele qu'elle n'a pas :
+  `{"error":"model 'qwen3.6:35b-a3b' not found"}`.
+- ollamaGenerate NE LEVE PAS d'exception la-dessus : il resout une chaine VIDE. L'appelant
+  conclut "rien" et passe au noeud suivant SANS AUCUN LOG. => GPU enregistre, en ligne,
+  jamais utilise, et personne ne pouvait le voir. Il l'aurait ete depuis 2 semaines.
+- Le mesh/heartbeat/registre/classifieur marchaient tous : seul le NOM DU MODELE manquait.
+
+FIX (racine, dans le registre) : `_resolveModel(node, state, capability)` choisit le modele
+d'apres les modeles REELLEMENT probes du noeud (vision -> qwen2.5vl, texte -> qwen2.5/llama3,
+ecarte moondream) ; `pickChain()` le pose sur les copies renvoyees. REGLE DE PRUDENCE : si le
+noeud possede le modele par defaut => undefined => ZERO changement (france-ovh intact, verifie).
+sovereignText/Vision passaient deja `model: node.model` -> repares sans y toucher.
+analyse-document : `analyserDocumentLocal(b64, mediaType, url, MODEL)` (ne passait que l'URL).
+
+BUG COMPTA GRAVE trouve dans la foulee (independant du modele) : le prompt exige une date ISO,
+un modele leger rend "13/03/2026". En aval le worker fait new Date(d).toISOString() :
+  '13/03/2026' -> RangeError => le worker PLANTE sur ce document
+  '03/04/2026' -> 2026-03-04 => lu 4 MARS alors que la facture dit 3 AVRIL, EN SILENCE
+=> `_normaliseDate()` (convention FR jour/mois/annee) applique a TOUT resultat de noeud, filet
+Claude compris. Format inconnu -> null (mieux vaut pas de date qu'une date fausse).
+
+MESURES REELLES (vraie facture PDF DENTAL EVOLUTION 997,89 EUR, vrai code de prod) :
+- AVANT fix : [analyse] france-ovh  (RTX sautee en silence)
+- APRES fix : [analyse] cabinet-10-10-0-4 (agent) = RTX. 21s vs 43,7s France => 2x.
+- Vision A CHAUD : RTX 0,6-0,8s vs France CPU 4,2-6,4s => ~7x. (A FROID : 25-30s, chargement
+  du projecteur vision en VRAM -> ne pas conclure sur un 1er appel, piege ou je suis tombe.)
+- 3 passages : fournisseur/TTC/date identiques + ISO => stable. Bascule RTX debranchee :
+  france-ovh reprend, meme resultat. Apres pm2 reload : le noeud revient seul en ~40s.
+
+LIMITES A SAVOIR :
+- Le noeud actuel est PC10 = le PC DE TRAVAIL du fondateur (dev, ecrans, logiciels), PAS le
+  socle prevu. Le socle = PC07 (3050 8Go) + PC11 (3060 12Go, mesh 10.10.0.6) ; PC11 est MUET
+  depuis 7 jours (handshake WG vieux de 7j). PC11/12Go est la bonne cible : 8 Go sont justes.
+- 8 Go = vision 5,1 Go + texte 4,7 Go NE TIENNENT PAS ensemble -> Ollama decharge/recharge en
+  alternant facture/photo (20-30s a froid a chaque bascule). 12 Go reglerait ca.
+- `/api/onprem/nodes` : gpu/vram sont sous `load`, PAS a la racine (piege de lecture).
+
 ===============================================================
 FIN DU CODEX -- Actualise automatiquement par Claude Code a chaque passe
-Derniere mise a jour : 13 juin 2026 (JCI rapatrie + teste + push GitHub propre)
+Derniere mise a jour : 17 juillet 2026 (VAGUE 2 SOUVERAINE [commit 0abf844] : stock/commerce/showroom/shade
+routes, 0 provider IA en dur ; socle sovereignJson = escalade sur confiance, prouve en reel [cas facile =
+local seul ; cas dur = France->Mistral EU->Claude US ; sensitive = France UNIQUEMENT] ; SHADE INVERSE comme
+radio-plan : il envoyait les PHOTOS CLINIQUES patient a Claude US pour deviner la teinte -> desormais le
+praticien releve au teintier, l'IA structure en local et n'ouvre jamais la photo [teste : zero invention] ;
+2 bugs pre-existants corriges : regex JSON non-gourmand -> 422 a tort, front shade sur champs mockes.
+— Plus tot le 17 : ECRAN "Comparateur de mes prix" LIVE dans dentiste-pro [commit 07a6d4d, teste e2e] ;
+DECOUVERTE : supplier_prices.gtin contient des references fournisseur et non des codes-barres -> comparaison
+inter-fournisseurs impossible tant qu'on compare par gtin ; le pont = product_clusters/RAG deja construits)
+===============================================================
+
+===============================================================
+NUIT DU 17 JUILLET — ACHATS, PRIX FAUX, SECURITE DES SECRETS
+===============================================================
+
+1) ECRAN "Comparateur de mes prix" -> CONSTRUIT PUIS RETIRE (revert 3d97478).
+   Le fondateur a signale un doublon : la page "Economies" du classik (index.html:2000)
+   fait deja ca, en plus riche. Et l'onglet violait la regle des 2 dashboards
+   (fournisseurs/achats = classik, PAS dentiste-pro qui est 100% patient).
+   Pourquoi la page Economies parait morte : /api/achats/economies lit la vue
+   v_economies_jadomi (0 ligne) puis retombe sur des colonnes INEXISTANTES
+   (price_ht, best_market_price) -> renvoie toujours vide. Elle est a REBRANCHER
+   sur /api/achats/comparateur-cabinet, pas a reconstruire.
+   LECON : l'agent d'exploration a dit vrai (aucun onglet achats dans dentiste-pro)
+   mais ignorait la regle produit. Lire les memoires AVANT de coder.
+
+2) EXTENSION NAVIGATEUR -> capte vraiment les prix (commit 38dbfc4).
+   Le POC lisait les prix Henry Schein puis les JETAIT. Desormais : adapters/ (1
+   fournisseur = 1 fichier), interceptor generique, background.js (envoi signe),
+   link.js (liaison AUTO quand le dentiste ouvre jadomi.fr connecte : zero saisie).
+   + lib/achats/extension-key.js (jeton HMAC, aucun mot de passe) ; endpoints
+   GET /api/achats/extension-key + POST /api/achats/prix-extension.
+   SOURCE UNIQUE : passe par matchInvoiceToProducts (meme pipeline que les factures).
+   BUG REEL TROUVE AU TEST : le CORS n'autorisait que jadomi.fr -> TOUT appel de
+   l'extension partait en 500. Origines chrome-extension:// autorisees (l'id change
+   a chaque install, c'est la cle signee qui protege). Teste e2e dans un vrai
+   Chromium : liaison auto OK, 3 prix captes/envoyes, remise REELLE lue chez le
+   fournisseur (catalogue 62,40 -> paye 46,08 = -26%).
+   LIMITE ASSUMEE : l'extension ne capte que ce que le dentiste REGARDE. Decision
+   fondateur : aspiration en tache de fond avec sa session deja ouverte (option C).
+
+3) PRIX FAUX DU COMPARATEUR — signale par le fondateur, CONFIRME, PIRE QUE PREVU.
+   Cas : 37,00 EUR affiche pour un produit vendu 128,04 EUR (eDentalMarket).
+   - Cause #1 PROUVEE : scraper-engine.js:348 fait querySelector('.a,.b,.c') qui
+     renvoie le premier element DU DOCUMENT, pas le premier selecteur -> il lisait
+     le TOTAL DU PANIER (span.value-top.price, 0,00 EUR). Correctif ecrit + teste
+     (128,04 EUR lu) mais NON COMMITE (voir cause #2).
+   - Cause #2 NON RESOLUE : la meme page donne 128,04 en HTTP brut et 106,70 dans
+     un navigateur (JS du site qui reecrit en HT ; le libelle "Taxes incluses"
+     devient faux). 106,70 x 1,20 = 128,04. Livrer le correctif tel quel
+     remplacerait un prix faux VISIBLE par un prix faux CREDIBLE. Refuse.
+   - Cause #3, LA VRAIE : la base est PERIMEE. 252 892 prix ; 0,2% < 7 jours,
+     3,4% < 30 jours, 86,7% > 60 jours (releves du 6 mai au 13 juillet). Minti met
+     a jour QUOTIDIENNEMENT. Verification de 15 produits contre les vraies pages :
+     9 justes / 6 FAUX = 40% d'erreur (dont un coffret affiche 207,34 alors qu'il
+     vaut 103,82 : on fait passer le moins cher pour le plus cher).
+   - LIVRE (5acc726) : _prixIncoherent() sur /search ET /product/:ref, seuils
+     MESURES sur 32 000 lignes (pas choisis au juge) : masque prix>2x barre (666
+     lignes) et remise>80% (172 lignes) = ~2,6%. NE masque PAS remise>50% (1 847
+     lignes : les discounters gonflent le prix barre, ce sont de VRAIES promos —
+     un 1er jet masquait 92% des gants nitrile) ni prix>barre (5 260 lignes dont
+     56% au rapport 1,15-1,25 = TTC face a HT, pas une incoherence).
+     + BUG corrige : /search re-comparait best_price avec p.price BRUT apres
+     normalisation TTC -> un prix HT pouvait s'afficher en "meilleur prix".
+   - CONCLUSION STRATEGIQUE (fondateur) : le catalogue public est une bequille
+     datee ; les COMPTES CONNECTES sont la verite (frais, reels, remise comprise).
+
+4) SECURITE — deux trouvailles graves, corrigees et prouvees.
+   - FUITE INTER-CABINETS (0ef6f45) : invoice-matcher.js interrogeait la table
+     `fournisseurs` SANS filtre societe_id via admin() (bypass RLS). Le contrat du
+     cabinet B servait a calculer les prix du cabinet A. PROUVE avant/apres : ancien
+     code -> B paye 72 EUR avec la remise 40% de A ; nouveau -> B paye 120 EUR.
+     Fallback "cherche sans societe_id" RETIRE. Sans risque : table vide (0 ligne).
+   - CLE DE CHIFFREMENT PUBLIQUE (0fb1588 + 4f5ec48 + 6eb61d0) : ENCRYPTION_KEY
+     absente du .env -> le code se rabattait sur SUPABASE_SERVICE_ROLE_KEY[0..32] =
+     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX" = l'en-tete standard d'un JWT, IDENTIQUE sur
+     tous les projets Supabase. Les mots de passe des boites mail des cabinets
+     etaient chiffres avec une cle PUBLIQUE. 7 copies du helper (l'inventaire en
+     annoncait 5) -> toutes basculees sur lib/crypto-vault.js (source unique, LEVE
+     si la cle manque, relit l'ancien format pour ne rien casser).
+     RE-CHIFFREMENT APPLIQUE sur les 4 comptes reels. Verifie : JADOMI lit, la cle
+     publique ne lit PLUS, connexion IMAP REELLE OK (mot de passe intact).
+     Le coffre utilise SITE_CREDENTIALS_KEY (deja en .env, 64 hex = 32 octets).
+
+RESTE / PROCHAINE SESSION :
+a) ECRAN "Mes comptes fournisseurs" (decision fondateur : modele Minti, identifiants
+   dans JADOMI — Minti annonce "Connectez vos identifiants une seule fois").
+   BLOQUEUR : SUPABASE_ACCESS_TOKEN absent du .env et pas de MCP en session headless
+   -> impossible de creer la table du coffre (scripts/_run-sql.js en a besoin).
+   Patron a suivre : sites_existants_credentials (donnees_chiffrees/iv/tag +
+   teste_le/dernier_test_ok), PAS comptes_email_societe. Enrichir la page
+   page-fournisseurs (index.html:830) qui existe deja — attention : elle persiste en
+   double (Supabase ET localStorage) avec try/catch VIDES -> le dentiste croit avoir
+   enregistre alors que rien n'est parti ; et le badge "Connecte" est cosmetique
+   (s'affiche des qu'un code client est rempli). La table `fournisseurs` est un
+   FANTOME : vivante et utilisee, mais dans AUCUNE migration -> a officialiser
+   (sql/91_) avec societe_id NOT NULL + RLS.
+b) Aspiration en tache de fond par l'extension (option C validee).
+c) Correctif scraper-engine (ecrit, non commite) : ne livrer qu'avec la base HT/TTC
+   tranchee ET une re-collecte fraiche, sinon inutile.
+
+===============================================================
+
+===============================================================
+17 JUILLET (nuit, suite) — ACHATS : LA VRAIE ARCHITECTURE (recherche directe)
+===============================================================
+VIRAGE decide par le fondateur, PROUVE, a ne plus perdre (memoire
+project_achats_recherche_directe) :
+
+- PAS de scraping / PAS de miroir catalogue. Le dentiste tape un produit ->
+  JADOMI cherche EN DIRECT dans la base de chaque fournisseur connecte, avec la
+  session du cabinet, en parallele -> le moins cher -> panier.
+- PROUVE sur le compte reel Henry Schein : recherche browserless
+  Search.aspx?searchkeyword= (458 ms) + prix POST JSONRequestHandler.ashx
+  (180 ms). Navigateur UNE fois (connexion), ensuite appels HTTP directs
+  (cookies + jeton `n` du HTML + header iscallingfromcms). Remises reelles
+  constatees (-54% sur une aiguille : 19,49 -> 8,99).
+- GACD = Cloudflare Turnstile bloque l'IP datacenter du serveur DEFINITIVEMENT
+  (5 methodes testees). -> tourner sur le NOEUD RTX DU CABINET (IP residentielle
+  passe Cloudflare + identifiants restent au cabinet = souverainete). Infra
+  existante lib/onprem.
+- Le systeme de MAIL PANIER existe deja et est branche = module GPO
+  (api/gpo/*, lib/emails/supplier-offer.js) : routage sequentiel + lien
+  fournisseur (accepter/refuser/contre-proposer) + relances. BOMBE : target_prices
+  VIDE -> tout mail annonce 17 EUR. Les 50 gpo_suppliers ont l'email du fondateur
+  (test) -> rien parti a un vrai fournisseur.
+
+Commits du soir : ecran comparateur retire (doublon) ; garde-fou prix faux
+_prixIncoherent (5acc726) ; cloisonnement invoice-matcher (0ef6f45) ;
+lib/crypto-vault source unique + re-chiffrement cles mail PUBLIQUES (0fb1588/
+4f5ec48/6eb61d0) ; extension capte prix (38dbfc4) ; routes+table fournisseurs
+(52900c6) ; connexion Henry Schein REELLE + noms + ref fabricant (02c39d3/afeec5d).
+
+RESTE : (1) module rechercher(terme) browserless par adaptateur ; (2) endpoint
+/api/achats/recherche parallele -> moins cher ; (3) barre recherche + panier ;
+(4) stock bas -> recherche -> GPO ; (5) deployer sur le noeud RTX. NE PAS
+reprendre le scrape complet (capturer par rayon = abandonne).
+===============================================================
+
+===============================================================
+21 JUILLET 2026 — ACHATS : LE VERROU RECHERCHE->PRIX EST LEVE + CHAINE CONSTRUITE
+===============================================================
+LE "POINT NON RESOLU" DU 17 JUIL EST RESOLU, 100% COTE SERVEUR (pas de noeud
+requis pour Henry Schein). Cause reelle du corps vide : PAS structurelle. Deux
+erreurs cumulees -> (1) la session disque etait EXPIREE (~4 jours) : Henry Schein
+voyait le serveur DECONNECTE -> prix de recherche = 0 ; (2) on RECONSTRUISAIT
+l'appel JSONRequestHandler.ashx (corps vide).
+LA BONNE METHODE : laisser la page recherche declencher SES PROPRES appels prix,
+les ECOUTER (page.on('response')) et SCROLLER pour armer le lazy-load — comme
+capturer() sur les rayons, comme l'extension. PROUVE EN REEL sur le compte du
+fondateur (session fraiche) : Search.aspx?searchkeyword=g-aenial -> 25 produits,
+3 appels prix BATCHES -> 18-19 prix negocies REELS non nuls (95,99 / 99,99 /
+58,99 EUR HT). La page RECHERCHE est une MEILLEURE source que la fiche produit
+(elle price plusieurs SKU d'un coup ; la fiche rend surtout des corps vides) ->
+"recherche d'abord" est le bon design.
+
+CONSTRUIT (3 fichiers, node -c + pm2 reload OK, backup server.js.bak-recherche-*) :
+- lib/connector/fournisseurs/henryschein.js :: rechercher(page,{terme,maxScroll})
+  Ecoute les prix + scroll + fusion schema.org (nom / mpn=ref fabricant / url fiche).
+  Ne rend QUE les produits AVEC un prix client (regle zero-decoration : rien
+  d'invente a l'ecran). Retour : {reference, designation, prix_ht,
+  prix_catalogue_ht, marque, ref_fabricant, url}.
+- lib/connector/fournisseur-session.js :: rechercherPrix({societeId,fournisseur,
+  terme}) + export hasSession. RECONNEXION AUTO : si la session est absente/morte,
+  se reconnecte SILENCIEUSEMENT avec les identifiants chiffres gardes (coffre
+  crypto-vault) puis retry — comportement CONCU ("ca reste enregistre, JADOMI se
+  reconnecte seul"), indispensable car la session expire en ~4 j. Prouve : la
+  session du 17 etait morte, la reconnexion l'a refaite toute seule.
+- server.js :: GET /api/achats/recherche?q= (requireAuth + societe-scope via
+  _societeAutorisee). Interroge EN PARALLELE (Promise.all) tous les fournisseurs
+  pour lesquels le cabinet a hasSession OU aIdentifiants. Tri par prix croissant.
+  comparaisons[] = regroupement inter-fournisseurs par ref_fabricant (mpn, seule
+  cle fiable) avec economie_ht. meilleur = le moins cher. Ajoute a longRoutes
+  (recherche+scroll+reconnexion peut depasser le timeout court). Smoke test :
+  401 sans token (route montee + auth OK), 400 sans q. Orchestration testee
+  bout-en-bout en reel : 18 produits exploitables, moins cher 58,99 EUR HT,
+  comparaisons=0 (normal : 1 seul fournisseur connecte aujourd'hui).
+
+HT/TTC (recadrage fondateur, TRANCHE) : le prix capte chez Henry Schein EST le TTC.
+Le fournisseur affiche DEJA en TTC au compte dentiste -> CustomerPrice (API) =
+exactement le prix a l'ecran (95,99 EUR), 0 label HT/TTC dans le HTML. Coherent :
+le dentiste est NON SOUMIS a la TVA (soins) -> il ne la RECUPERE PAS sur ses achats
+-> la TVA est un cout SEC -> le fournisseur lui montre son cout reel (TTC).
+=> NE JAMAIS multiplier le prix capte par 1,20 (erreur intermediaire : ca gonflait
+95,99 -> 115,19, faux). Le nombre capte = prix_ttc (reference : affichage, tri,
+comparaison, economie_ttc). prix_ht = derive TTC/1,20, info compta seulement, jamais
+base de decision. Corrige (commit apres 343c9e2) : rechercher() ne multiplie plus ;
+tri endpoint deja par TTC. Voir memoire feedback_dentiste_ttc_non_assujetti.
+
+RESTE : (a) barre de recherche "le moins cher" dans le dashboard classik (page
+Economies/Fournisseurs, PAS dentiste-pro = regle 2 dashboards) branchee sur
+/api/achats/recherche + panier — AFFICHER prix_ttc ; (b) stock bas -> recherche -> GPO (BOMBE
+target_prices VIDE : tout mail annonce 17 EUR, 50 gpo_suppliers = email fondateur
+-> NE PAS envoyer a un vrai fournisseur avant fix) ; (c) 2e adaptateur fournisseur
+(1 fichier) pour peupler comparaisons ; (d) GACD sur le noeud RTX (Cloudflare) —
+Henry Schein marche deja cote serveur.
+===============================================================
+
+===============================================================
+24 JUILLET 2026 — ACHATS : BARRE "LE MOINS CHER" DANS LE DASHBOARD CLASSIK (UI)
+===============================================================
+RESTE (a) du 21 juil LIVRE : la recherche prix cote serveur avait un endpoint
+mais aucune UI ; le dentiste ne pouvait pas s'en servir. Branche maintenant.
+
+CONSTRUIT (1 fichier : index.html = dashboard classik /dentiste, backup
+index.html.bak-recherche-ui-*). Page Fournisseurs (page-fournisseurs), PAS
+dentiste-pro (regle 2 dashboards) :
+- Barre "Trouver le moins cher" en tete de page (input + bouton, Entree = go).
+- Appel GET /api/achats/recherche?q= via eqHeaders() (token + X-Societe-Id).
+- Rendu ZERO DECORATION : ligne d'etat = fournisseurs REELLEMENT interroges +
+  nb de prix lus (point vert/orange selon status) ; si aucun compte connecte ->
+  etat vide honnete + lien "Connecter un compte". Resultats tries par le serveur
+  (TTC croissant), 1er = badge MOINS CHER. Par produit : designation, fournisseur,
+  marque, ref fabricant, PRIX TTC en gros + remise reelle (catalogue barre, -X%)
+  + HT derive en petit (info), lien fiche. Bloc "comparaisons" inter-fournisseurs
+  (economie_ttc) quand present.
+- PRIX = TTC partout (dentiste non assujetti, cf memoire feedback_dentiste_ttc).
+- Panier LOCAL (localStorage achats_panier) : ajout/retrait, total TTC. N'ENVOIE
+  RIEN (respecte la BOMBE GPO : target_prices vide + gpo_suppliers=email fondateur)
+  -> note explicite "l'envoi se fait depuis Commandes, rien d'automatique".
+
+VERIF : node --check du bloc JS = OK ; /dentiste sert la page (9 refs aux
+nouveaux ids/fns) ; endpoint monte (401 sans token). Pas de reload pm2 (index.html
+servi par sendFile a chaque requete, no-store).
+
+RESTE (inchange) : (b) stock bas -> recherche -> GPO APRES fix bombe target_prices ;
+(c) 2e adaptateur fournisseur (1 fichier) pour peupler comparaisons ; (d) GACD sur
+le noeud RTX (Cloudflare). Henry Schein marche deja cote serveur.
+===============================================================
+
+===============================================================
+24 JUILLET 2026 (suite) — GPO : DESAMORCAGE BOMBE "17 EUR" (garde fail-closed)
+===============================================================
+VERIFIE EN BASE (pas suppose) : target_prices = 0 ligne ; suppliers = 50 lignes
+TOUTES avec email karim_bahmed@yahoo.fr (seed de test). Or POST /api/gpo/requests
+ENVOIE l'email au fournisseur automatiquement (fire-and-forget) et, target_prices
+etant vide, chaque ligne retombe sur DEFAULT_TARGET_PRICE = 17 EUR (requests.js:33)
+avec is_estimated:true. Aujourd'hui ca n'atteint que le fondateur (email de test)
+mais des qu'une ligne fournisseur porterait un vrai email -> offre a 17 EUR inventee
+envoyee a un vrai fournisseur. C'est la "bombe" flaggee.
+
+FIX (1 fichier, lib/emails/supplier-offer.js, backup .bak-gpo-guard-*, node -c OK,
+pm2 reload, home+/dentiste 200) : garde FAIL-CLOSED au point d'envoi UNIQUE
+sendSupplierOfferEmail() -> si une ligne de l'offre est is_estimated, l'envoi est
+REFUSE (retourne {skipped:true, error:'estimated_pricing_blocked'}, 0 mail). Couvre
+les 3 appelants (requests, gpo-scheduler, groupage) sans les casser. Se leve tout
+seul quand de vrais prix cibles existent. PROUVE par test mocke : estime -> bloque
+(0 envoi) ; prix reel -> passe (1 envoi). Aligne zero-decoration + jamais-envoyer-
+sans-valider.
+
+RESTE bombe (donnees, pas code) : nettoyer/remplacer les 50 suppliers de test
+(email fondateur) avant tout vrai envoi ; peupler target_prices depuis les prix
+REELS captes par /api/achats/recherche (au lieu du fallback 17 EUR) -> c'est le
+vrai branchement stock bas -> recherche -> GPO (RESTE b).
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — LE MOTEUR INVENTAIT DES PHRASES (24 juil 2026)
+===============================================================
+SYMPTOME (remonte par le fondateur en test) : le public recevait des phrases
+JAMAIS prononcees, repetees en boucle ("On va plonger directement dedans." /
+"We're going to dive right into it.").
+
+RACINE (1 decision d'archi, pas 3 bugs) : api/live-translate/index.js utilisait
+le Realtime en mode ASSISTANT CONVERSATIONNEL avec auto-reponse.
+  1. turn_detection server_vad + create_response par defaut a TRUE
+     -> chaque bruit de salle declenchait une generation. Sans rien a traduire,
+        le modele inventait une phrase de conference plausible.
+  2. AUCUNE transcription d'entree activee -> rien n'ancrait la sortie sur la
+     parole reelle. Le code ne savait jamais ce qui avait ete dit.
+  3. Chaque invention entrait dans l'historique -> boucle de repetition.
+  + regie.html renvoyait le micro dans les haut-parleurs (node.connect(destination),
+    echoCancellation:false) -> risque de larsen / retraduction de sa propre voix.
+
+FIX (v1, 2 fichiers) :
+  [1] SESSION ECOUTE (1/salle) : create_response:false + interrupt_response:false
+      + audio.input.transcription (gpt-4o-mini-transcribe, language=srcLang).
+      Elle ne genere JAMAIS rien. Elle rend UNIQUEMENT ce qui a ete dit.
+  [2] SESSIONS TRADUCTION (1/langue cible) : ne recoivent AUCUN audio.
+      response.create "out-of-band" (conversation:'none') avec le TEXTE exact en
+      entree -> zero historique, zero audio, invention structurellement impossible.
+      File FIFO serialisee par langue (une reponse active a la fois).
+  + Garde-fou anti-hallucination : liste d'artefacts STT connus (Amara.org,
+    "Thanks for watching", "Merci"...), mot repete en boucle, phrase identique
+    dans les 5 s -> REFUSE avant toute traduction.
+  + Auditeur dans la langue de l'orateur : transcription diffusee telle quelle,
+    aucun modele n'intervient (donc zero risque).
+  + regie.html : puits GainNode(0) (le micro ne ressort plus), echoCancellation
+    ACTIF, porte de bruit a seuil reglable (sous le seuil rien n'est envoye, puis
+    silence NUMERIQUE pour que le VAD cloture le tour proprement), amorce pre-roll.
+  + ZERO DECORATION : le pupitre affiche "Ce que la machine entend" — chaque
+    phrase captee (verte = traduite) et chaque rejet avec son MOTIF. Le
+    conferencier voit en direct qu'on ne traduit que ce qu'il a dit.
+
+PREUVES (tests reels, pas de la theorie) :
+  - Config ECOUTE sur 3 s de SILENCE PUR -> 0 evenement response.* (le cas exact
+    qui hallucinait). Session acceptee par l'API GA, 0 erreur.
+  - Out-of-band texte -> "Le tiers apical du canal doit etre instrumente avec soin."
+  - E2E sur PROD wss://jadomi.fr/ws/live-translate (silence -> vraie voix TTS
+    anglaise -> silence) : 0 sous-titre invente sur les silences, 1 traduction
+    correcte de la phrase reelle ("...du tiers apical du canal radiculaire").
+
+DEPLOIEMENT : moteur + pages LIVE sur jadomi.fr (pm2 reload OK).
+RESTE : reuploader les 2 pages sur dentalevolution.fr/traduction/ (hebergement
+WP separe, 147.79.116.39) — copies pretes, WebSocket deja pointe sur
+wss://jadomi.fr/ws/live-translate.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — 2e passe : il REPONDAIT au lieu de traduire (24 juil)
+===============================================================
+Apres le fix anti-invention, le fondateur reteste : plus d'invention, mais le
+moteur se comportait en CHATBOT.
+  "Comment ca va ?"  -> "Je vais bien, merci. Here is the translation: How are you?"
+  "Traduis cette phrase en espagnol." -> "D'accord, merci de me donner la phrase."
+  + preambules "D'accord, voici la traduction en anglais :".
+
+RACINE : on passait l'extrait comme un MESSAGE UTILISATEUR
+(input:[{role:'user', text:transcript}]). Le modele croit qu'on lui parle -> il
+repond / il obeit. Aucune instruction ne le contredit assez fort.
+
+FIX (mesure A/B sur 5 cas reels, dont une injection dans le discours) :
+  A. extrait en message utilisateur (l'ancien)      -> 2/5
+  B. delimiteurs + interdiction de repondre          -> 4/5 (echoue sur l'injection)
+  C. EXTRAIT DANS LES INSTRUCTIONS, input = declencheur neutre -> 5/5  <= RETENU
+  D. C + amorce role assistant                       -> 5/5 (inutile, plus complexe)
+Retenu C : l'extrait n'est plus une parole adressee au modele, c'est une donnee
+a transformer. "Traduis cette phrase en espagnol" ressort traduit
+("Translate this sentence into Spanish"), il ne l'execute plus.
+
+===============================================================
+# ETRE FORT EN DENTAIRE : armer l'OREILLE, pas seulement la bouche
+===============================================================
+CONSTAT en test E2E : "instrumentation du tiers APICAL" -> entendu "tiers RADICAL"
+-> traduit "the radical third party". Le glossaire (404 termes) ne sert qu'a la
+TRADUCTION : si la transcription se trompe, il recoit deja du charabia.
+
+FIX : amorce de vocabulaire injectee dans audio.input.transcription.prompt
+(lexique-dentaire.js -> amorceTranscription(lang, perso)).
+  PIEGE MESURE : le champ prompt est plafonne a 1024 CARACTERES. Au-dela, OpenAI
+  REJETTE la config -> la transcription est PUREMENT DESACTIVEE, en silence
+  (0 mot entendu, aucune erreur visible cote UX). Une premiere amorce de 1893
+  caracteres a casse toute la chaine. AMORCE_MAX = 1000, garde dure.
+  Ordre de priorite dans le budget : 1) termes declares par le conferencier,
+  2) marques (ce que les moteurs massacrent le plus), 3) termes de specialite
+  (tries : expressions composees d'abord, plus discriminantes).
+
++ REGIE : champ "Termes et marques de votre presentation" (persiste en
+  localStorage, envoye dans le message broadcaster). Chaque conferencier arme
+  l'oreille pour SA presentation. C'est ca, l'avantage sur Wordly : pas le
+  nombre de langues, la justesse du vocabulaire metier.
+
+PREUVES (chaine complete en prod, FR -> EN) :
+  - avant amorce : 0/13 termes dentaires entendus (config cassee) puis
+    "tiers abical" / "tiers radical" sans amorce.
+  - apres amorce : 13/13 termes entendus. Traductions livrees :
+    "the apical third", "chronic apical periodontitis and a vertical root
+    fracture", "obturation with bioceramic cement", "MB2 after trepanation...
+    sodium hypochlorite", "glide path... under dam and microscope".
+  - non-regression anti-invention : 3s + 4s de silence pur -> 0 sous-titre.
+  - non-regression chatbot : 5 phrases FR -> 5 traductions propres, 0 preambule.
+
+DEPLOYE : moteur (pm2 reload) + pages sur jadomi.fr ET dentalevolution.fr.
+RESTE : latence bouche->sous-titre TOUJOURS PAS MESUREE (chiffre n1 au prochain
+test en salle) ; regler le seuil de captation sur le vrai micro.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — coller son ORAL ENTIER (24 juil)
+===============================================================
+QUESTION FONDATEUR : "je peux y coller tout mon oral ?"
+REPONSE : non tel quel (limite dure de 1024 car. sur transcription.prompt), MAIS
+c'etait la bonne idee -> on EXTRAIT le vocabulaire du texte automatiquement.
+
+extraireTermes(texte, lang) dans lexique-dentaire.js, par ordre de priorite :
+  0. marques du lexique REELLEMENT citees dans le texte
+  1. sigles (MB2, CBCT, EDTA...) — sautes s'ils sont deja dans une marque retenue
+     (le "BC" de "TotalFill BC Sealer" n'apporte rien)
+  2. termes du lexique metier presents dans le texte (composes d'abord)
+  3. noms propres composes en milieu de phrase (marques hors lexique)
+  4. mots rares et longs (vocabulaire que le lexique ignore encore)
+Filtres : elisions retirees (l'hypochlorite -> hypochlorite), formes conjuguees
+(commencerons, aborderons), mots courants FR+EN, "aujourd'hui"/"quatre-vingt-dix"
+reconnus malgre apostrophe et traits d'union.
+Bascule liste/texte : > 40 mots ou ponctuation de phrase -> mode extraction.
+Serveur : m.termes accepte 40 000 car. (etait 800). Regie : textarea + compteur
+honnete ("140 mots colles — le vocabulaire de specialite en sera extrait").
+
+PREUVE (chaine complete, prod, oral de 140 mots colle puis 4 phrases parlees) :
+  140 mots -> 34 termes extraits -> amorce 959 car.
+  9/9 termes dentaires ENTENDUS. Traductions livrees :
+    "the catheterization and the glide path, prepared with the ProGlider"
+    "The location of the MB2 in maxillary molars remains a challenge."
+    "obturation ... with TotalFill BC Sealer using the single-cone technique"
+    "the apical constriction and the management of the apical third"
+DEPLOYE jadomi.fr + dentalevolution.fr.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — LATENCE + 6 LANGUES (24 juil)
+===============================================================
+DEMANDE FONDATEUR : "trop de latence" + ajouter arabe, chinois, roumain,
+neerlandais/flamand + "attention, certains font des monologues de 5 min sans
+s'arreter".
+
+MESURE D'ABORD (aucune optimisation a l'aveugle). Chronometrage par maillon :
+  une fois l'orateur tu -> 1er sous-titre en 0,44 a 1,63 s. Le traitement N'EST
+  PAS le probleme. Le probleme : ON ATTEND QU'IL SE TAISE. Sur une phrase de 6 s,
+  l'auditeur est servi 7 s apres les premiers mots.
+
+BANC D'ESSAI DE LA DECOUPE (28,6 s de parole continue, temps reel) :
+  A. server_vad silence 550 ms (ancien) : 1er a 6,80 s |  4 morceaux | int. 7,75 s
+  B. server_vad silence 250 ms          : 1er a 6,40 s |  7 morceaux | int. 3,82 s
+  C. server_vad silence 150 ms          : 1er a 1,52 s | 10 morceaux | int. 3,16 s
+  D. semantic_vad eagerness high        : 1er a 18,83 s|  2 morceaux | int. 11,93 s
+  => semantic_vad est le PIRE choix pour une conference (a ne pas retenter).
+
+PIEGE MAJEUR — COUPE FORCEE : essai de input_audio_buffer.commit toutes les 2,5 s
+pour plafonner la latence des monologues. L'API l'accepte sans erreur, MAIS un
+morceau force contient parfois quasi aucune parole -> LE MOTEUR REINVENTE des
+phrases parfaitement credibles, jamais prononcees ("Why is it essential to
+identify the MB2 ?", "Now let's move on to the clinical advantages of ProTaper
+Ultimate..."). Pire : l'amorce dentaire lui fournit le vocabulaire pour halluciner
+de facon plausible, donc indetectable a l'oreille. ABANDONNE. NE JAMAIS FORCER
+DE COMMIT. La decoupe doit rester declenchee par de la parole reelle.
+
+RETENU : threshold 0.45 / prefix 200 ms / silence_duration 200 ms, sans aucune
+coupe forcee. Le portier de bruit de la regie (qui n'envoie QUE de la parole,
+sinon du silence numerique) permet d'etre tres sensible sans reagir au brouhaha.
++ GARDE-FOU D'ENERGIE cote serveur : on mesure le RMS de l'audio recu ; si un
+  segment contient moins de 300 ms de voix reelle, toute transcription qui en
+  sort est REFUSEE ("segment sans parole (X ms de voix mesuree)"). C'est la
+  parade structurelle a l'hallucination sur morceau vide.
++ voix de sortie a speed 1.06 : marge pour ne pas prendre du retard sur 5 min.
+
+RESULTAT MESURE (monologue non-stop de 33,9 s, prod) :
+  1er sous-titre    6,80 s -> 3,30 s
+  intervalle moyen  7,75 s -> 4,56 s
+  attente maxi                8,47 s (longue proposition sans respiration)
+  inventions : 0 | non-regression silence 7 s : 0 sous-titre
+
+6 LANGUES : fr, en, nl (neerlandais/flamand), ro, ar, zh. Codes ISO-639-1 utilises
+tels quels par la transcription. Glossaire PRESCRIPTIF en FR/EN, formule comme
+REFERENCE DE SENS pour les autres langues (les marques ne se traduisent dans
+aucune langue). Amorce : pour une langue hors lexique, budget donne aux MARQUES
+(seul contenu pertinent quelle que soit la langue). Page publique : 6 cartes,
+arabe en dir="rtl" (sinon illisible).
+Verifie en prod : ar/zh/ro/nl rendent tous une traduction correcte de
+"La localisation du MB2 sur les molaires maxillaires reste un defi".
+
+PISTE NON ENGAGEE (demande l'accord du fondateur) : les deltas de transcription
+arrivent EN DIRECT (1er mot a 2,5 s alors que l'orateur parle encore) -> on
+pourrait traduire la phrase partielle et diviser encore la latence, au prix de
+sous-titres provisoires qui se corrigent en public.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — DECOUPE VIVANTE, CALEE SUR L'ORATEUR (24 juil)
+===============================================================
+INTUITION FONDATEUR (juste) : "entre les phrases les orateurs font des pauses ;
+s'il parle lentement la pause est plus longue, s'il parle vite elle est bien plus
+courte — a nous de capter le rythme" + "faut que ce soit vivant, pas statique".
+
+Un seuil de decoupe FIXE est faux pour tout le monde : l'orateur pose respire
+longuement AU MILIEU de ses phrases (a 200 ms on le tronconne), le rapide enchaine
+avec des pauses tres breves (a 200 ms on ne le coupe jamais, la latence s'envole).
+
+MECANIQUE LIVREE :
+  - la regie mesure les silences reels entre deux emissions de voix, en continu ;
+  - fenetre glissante COURTE (24 dernieres pauses) pour suivre un orateur qui
+    accelere ou ralentit EN COURS d'intervention ;
+  - centile de cette distribution -> seuil de decoupe, borne 140-550 ms ;
+  - recalage envoye au moteur des que l'ecart depasse 30 ms, au plus toutes les
+    2,5 s ; le serveur refait un session.update sur la session ECOUTE ;
+  - affichage honnete en regie : "debit rapide/moyen/pose — pauses medianes X ms,
+    decoupe reglee a Y ms (24 dernieres pauses)".
+
+CORRECTION PREALABLE INDISPENSABLE : le ScriptProcessor etait a 4096 echantillons
+(85 ms a 48 kHz) — impossible de MESURER une pause de 90 ms. Passe a 2048 (43 ms).
+
+ARBITRAGE MESURE (2 orateurs synthetiques, 4 phrases chacun) :
+  centile bas  (seuil ~200 ms) : 11 phrases tronconnees | intervalle 3,00 s
+  centile 90   (seuil ~500 ms) :  6 phrases tronconnees | intervalle 4,25 s
+  => couper court va vite mais hache ; couper long respecte l'orateur mais ralentit.
+  C'est un ARBITRAGE, pas un bug. Reglage par defaut au 80e centile, et un CURSEUR
+  "rapidite / phrases entieres" (60-95) en regie permet de deplacer le compromis en
+  salle, en une minute, sur la vraie voix.
+
+RESERVE HONNETE : mesures faites sur des voix de SYNTHESE, dont les pauses sont
+anormalement regulieres et longues en fin de phrase (le centile 90 saturait a
+550 ms meme pour le debit "rapide"). Le calage fin du centile DOIT se faire une
+fois sur un vrai micro avec un vrai orateur — l'affichage en regie est fait pour ca.
+
+PIEGE DE MES PROPRES TESTS (a retenir) : 1er banc d'essai invalide car (a) le
+generateur de silences comptait les octets en double (48 o/ms a 24 kHz, pas 96) et
+(b) la diffusion se faisait par blocs de 200 ms, incapables de voir une pause de
+90 ms. Un banc d'essai qui ne resout pas le phenomene mesure ne prouve rien.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — LE MOTEUR RECRACHAIT SON AMORCE (24 juil)
+===============================================================
+CONSTAT FONDATEUR, EN DIRECT : "je parle meme pas et ca dit ca tout seul".
+Le public recevait la LISTE DE VOCABULAIRE qu'on souffle a l'oreille du moteur :
+"Endodontics and dentistry conference. Vocabulary and brands expected: ProTaper,
+ProTaper Gold, ... odds ratio / relative risk." — trois fois de suite, dont une
+version REFORMULEE sans en-tete ("Access cavity in a keyhole or ninja style,
+Clark's rule or horizontal offset, ...").
+
+RACINE : regurgitation d'amorce. Travers connu des moteurs de transcription — sur
+un passage pauvre en voix (bruit de salle, micro ouvert), ils restituent leur
+propre prompt comme s'il avait ete prononce. Le garde-fou d'energie ne suffisait
+PAS : le segment contenait bien de l'energie (le bruit de la salle passe le
+portier si son seuil est trop bas).
+
+DEUX PARADES, les deux livrees :
+1. SUPPRESSION DE L'EN-TETE DE PHRASE dans l'amorce. Elle commencait par
+   "Endodontics and dentistry conference. Expected vocabulary and brand names: " —
+   une phrase bien formee est le meilleur point d'accroche pour une regurgitation.
+   L'amorce est desormais une simple liste de termes, sans verbe ni ponctuation de
+   phrase. Elle biaise l'oreille aussi bien (985 car.).
+2. GARDE-FOU renvoieAmorce() cote serveur. Un simple test de suite de 5 mots
+   identiques NE SUFFIT PAS (le moteur reformule). On mesure donc la PART du texte
+   faite d'entrees de la liste : refus si >= 8 entrees distinctes, ou >= 4 entrees
+   couvrant plus de 60 % des mots. Un orateur cite deux ou trois termes dans une
+   phrase, il ne recite pas son glossaire.
+   Eprouve sur 6 cas : les 3 renvois reels (dont le reformule) REFUSES, et
+   3 vraies phrases denses en marques ACCEPTEES ("We shaped the canal with
+   ProTaper Gold and obturated with TotalFill BC Sealer under the Zeiss
+   microscope, respecting the apical third." -> passe).
+
+PREUVE EN PROD : 20 s de BRUIT DE SALLE (pas du silence numerique : un souffle
+assez fort pour passer un portier mal regle) -> 0 sous-titre diffuse au public.
+Puis une vraie phrase -> traduite normalement.
+
+LECON D'EXPLOITATION : le SEUIL DE CAPTATION de la regie est la premiere defense.
+Regle trop bas, le bruit de fond entre et le moteur a de quoi divaguer. Le pupitre
+affiche "Niveau mesure" : monter le seuil au-dessus du bruit de la salle vide.
+
+INCIDENT DE METHODE (a ne pas refaire) : le garde-fou avait ete ECRIT et verifie
+en syntaxe, mais PAS DEPLOYE (pm2 reload oublie) — le fondateur testait donc
+encore l'ancien moteur pendant que j'annoncais le correctif. Toujours recharger
+ET reverifier avant de dire que c'est corrige.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — QUESTIONS DU PUBLIC (25 juil)
+===============================================================
+DEMANDE FONDATEUR : "le dentiste pose sa question depuis son tel dans sa langue,
+c'est traduit pour le conferencier, et le conferencier peut voir la reponse dans
+sa langue".
+
+CONSTAT PREALABLE : le chemin RETOUR existait deja. Quand le conferencier repond
+au micro, toute la salle recoit sa reponse traduite. Il ne manquait que le trajet
+telephone -> conferencier.
+
+ARCHITECTURE (le texte de la question passe par le MEME pipeline securise) :
+  telephone du participant --PCM16--> [3] SESSION QUESTION (1 par salle,
+    reconfiguree a la langue du demandeur, silence 500 ms car on parle plus
+    posement au telephone) -> transcription
+  -> MEMES GARDE-FOUS que la parole du pupitre : energie (300 ms de voix mini),
+     artefacts STT, renvoi d'amorce, anti-repetition
+  -> diffuserTexte(room, texte, langueSource, 'public') :
+       . chaque auditeur la recoit DANS SA LANGUE (marquee "Question de la salle")
+       . le PUPITRE la recoit dans la langue du conferencier ({type:'question'}),
+         avec l'original en dessous
+  -> le conferencier repond au micro : chemin normal, deja en place.
+
+REFACTO : traiterTranscription() a ete generalisee en diffuserTexte(room, texte,
+langueSource, origine). Les jobs de traduction ne sont plus des chaines mais des
+objets {texte, source, origine, versPupitre} — la langue source n'est donc plus
+forcement celle du pupitre, et une reponse peut etre routee vers le pupitre.
+
+MODERATION (indispensable en salle) : les questions sont FERMEES par defaut. Le
+pupitre a une bascule "Questions du public". Une seule question a la fois (le
+serveur refuse la 2e : "quelqu un pose deja une question"). Fermeture automatique
+si le conferencier se deconnecte. Duree max d'une question : 45 s.
+Le telephone utilise un puits GainNode(0) : le micro du participant ne ressort
+jamais dans son propre haut-parleur.
+
+PREUVE EN PROD (conferencier EN, un dentiste FR, un auditeur RO) :
+  refus quand les questions sont fermees -> "les questions ne sont pas ouvertes"
+  question dite en francais : "Docteur, quel est votre protocole d'irrigation
+    pour un MB2 tres calcifie ?"
+  -> AU PUPITRE (anglais) : "Doctor, what is your irrigation protocol for a very
+     calcified MB2?" (+ original francais affiche dessous)
+  -> AUDITEUR ROUMAIN : "Care este protocolul dumneavoastra de irigare pentru un
+     MB2 foarte calcifiat?"
+  reponse du conferencier au micro -> FR "J'utilise une irrigation ultrasonique
+     passive avec de l'hypochlorite de sodium" / RO "Folosesc irigare ultrasonica
+     pasiva cu hipoclorit de sodiu."
+DEPLOYE jadomi.fr + dentalevolution.fr.
+===============================================================
+
+===============================================================
+# QUESTIONS DU PUBLIC — FILE NOMINATIVE MODEREE (25 juil)
+===============================================================
+DEMANDES FONDATEUR : (a) "45 s c'est court, parfois on parle longtemps",
+(b) "tout le monde ne doit pas poser sa question comme il veut",
+(c) "le dentiste doit d'abord mettre mail nom prenom, on connait le nom de celui
+qui veut poser une question, la regie active le bon dentiste et ca debloque son
+telephone".
+
+(a) PLUS DE MINUTEUR. Une question s'arrete quand la personne a FINI DE PARLER :
+    8 s de silence detectees sur le telephone. Plafond de securite a 5 min (un
+    telephone oublie ne doit pas monopoliser la parole). Compteur visible pendant
+    qu'on parle. + Les morceaux d'une meme question sont RECOLLES au pupitre via
+    un questionId : une question de 39 s arrivait en 8 lignes, elle arrive
+    maintenant en UN bloc (verifie en prod).
+
+(b)+(c) FILE DES MAINS LEVEES, NOMINATIVE.
+    - Page publique : prenom, nom, e-mail obligatoires avant d'entrer (memorises
+      en localStorage). Validation cote client ET nettoyage cote serveur (bornes
+      de longueur, retrait des caracteres de controle et < >).
+    - Le participant "demande la parole" -> il entre dans la file et voit SA
+      position ("vous etes 3e sur 5").
+    - Le pupitre voit la file NOMINATIVE et donne la parole a qui il veut, dans
+      l'ordre qu'il veut. Seul le telephone autorise ouvre son micro.
+    - "Terminer" reprend la parole et permet de passer au suivant.
+    - Fermer les questions vide la file et previent tout le monde.
+    - Chaque question affichee au pupitre porte le NOM de son auteur.
+
+CHOIX DE CONFIDENTIALITE : l'e-mail n'est JAMAIS envoye au pupitre (cet ecran peut
+etre projete en salle). Seul le nom s'affiche. L'e-mail reste cote serveur.
+
+PREUVE EN PROD (3 dentistes identifies, conferencier EN) :
+  file au pupitre : 1. Karim Bahmed (fr) / 2. Andrei Popescu (ro) / 3. Sofie
+  Janssens (nl) ; chacun voit sa position sur son telephone.
+  Le conferencier saute le 1er et donne la parole a Sofie -> son telephone se
+  debloque, les deux autres restent bloques. "Terminer" -> il donne la parole a
+  Karim -> sa question arrive au pupitre : "[Karim Bahmed] What is your irrigation
+  protocol on a calcified MB2?"
+CORRECTIF AU PASSAGE : l'amorce d'une question n'est plus polluee par les notes du
+conferencier quand elles sont dans une autre langue que celle du demandeur.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — VITESSE, SUPPORTS, COUT, PANNE (25 juil)
+===============================================================
+1) SUPPORTS DU CONFERENCIER (api/live-translate/lire-support.js)
+   Il depose son PowerPoint / PDF / Word / texte : on en extrait le vocabulaire
+   qui va armer l'oreille. .pptx/.docx/.odp = archives ZIP de XML -> lecture
+   directe (jszip), diapos ET notes, tri numerique (diapo 2 avant la 10).
+   PDF via pdf-parse. 15 Mo max. Les termes s'ajoutent dans le champ VISIBLE de
+   la regie : le conferencier voit ce qui a ete retenu et peut corriger.
+   Mise a jour du vocabulaire SANS couper la voix (message 'vocabulaire' ->
+   session.update, au lieu de fermer/rouvrir la session d'ecoute).
+
+2) TRADUCTION PROVISOIRE = LE GAIN DE VITESSE
+   Les deltas de transcription arrivent PENDANT que l'orateur parle. On traduit
+   la phrase partielle en TEXTE SEUL (mesure : 1er mot en 0,39 s contre ~0,9 s
+   en audio) et on l'affiche en provisoire ; la version definitive la remplace.
+   MESURE : 1er texte a l'ecran 3,30 s -> 2,43 s. Definitif 2,85 s.
+   La VOIX n'est jamais provisoire (on ne peut pas "de-dire" un mot dans des
+   ecouteurs) : seuls les sous-titres s'affinent.
+   REGLE CENTRALE AJOUTEE : UN SOUS-TITRE NE RECULE JAMAIS. Deux sources
+   ecrivent la meme ligne (provisoire + definitive) ; sans cette regle la phrase
+   se raccourcit puis repousse ("Then we will address shaping with ProTaper
+   Gold." remplace par "Then"). On ignore toute version plus courte que ce qui
+   est affiche ; seule la version finale efface tout.
+
+3) COUT — MESURE, PAS ESTIME (compterUsage() lit response.done.usage)
+   Tarifs OpenAI /million de jetons :
+     gpt-realtime      audio-in 32 $ | texte-out 24 $ | audio-out 64 $
+     gpt-realtime-mini audio-in 10 $ | texte-out 2,40 $ | audio-out 20 $
+   DEUX OPTIMISATIONS STRUCTURELLES :
+   a) La session d'ECOUTE ne fait que transcrire, elle ne genere JAMAIS rien ->
+      passee en gpt-realtime-mini (audio-in 3x moins cher). Verifie : meme
+      transcription sur une phrase dense en marques. Idem session QUESTION.
+      La voie PROVISOIRE (texte seul) passe aussi en mini (texte-out 10x moins
+      cher, 346 ms contre 301 ms : ecart negligeable).
+   b) LA VOIX N'EST PLUS PRODUITE SI PERSONNE NE L'ECOUTE. On fabriquait la
+      synthese vocale meme quand aucun auditeur n'avait active l'audio — le
+      poste le PLUS CHER de toute la chaine, gaspille. quelquUnEcoute() decide
+      output_modalities par reponse : audio si des ecouteurs, texte sinon.
+   MESURE par minute de parole, 2 langues cibles, ecouteurs actifs :
+     appels au modele 44 -> 39 ; texte-in 7824 -> 6366 ; audio-in 5413 -> 4603.
+     Mode economie (sans provisoire) : 18 appels, texte-in 3420.
+   RESERVE HONNETE : l'audio d'entree de la session realtime n'est PAS declare
+   par response.done (aucune reponse n'y est generee). Le chiffre exact doit se
+   lire sur le tableau de bord OpenAI apres une repetition de 10 min.
+
+4) PANNE DE CREDIT — "jamais a court, sinon on est cuits"
+   - detection des codes fatals (insufficient_quota, billing_hard_limit_reached,
+     invalid_api_key) ET des refus a la poignee de main (401/403/429, via
+     l'evenement unexpected-response) -> banniere ROUGE immediate sur le pupitre.
+   - bouton "Verifier le service avant de commencer" : ouvre une vraie session
+     OpenAI et la referme. Feu vert AVANT de monter sur scene.
+   - MODE ECONOMIE : coupe la traduction provisoire (poste le plus gourmand en
+     appels). Bascule sur le pupitre.
+   - compteurs pousses toutes les 10 s : minutes d'audio ecoutees, phrases
+     captees, traductions, langues actives. Faits mesures, pas d'estimation.
+===============================================================
+
+===============================================================
+# TRADUCTION EN DIRECT — RESISTER A LA COUPURE DE CREDIT (25 juil)
+===============================================================
+CONTEXTE : le fondateur a active le RECHARGEMENT AUTOMATIQUE OpenAI. Cela ne
+supprime pas le risque, cela le rend TEMPORAIRE (plafond mensuel atteint, carte
+refusee, delai entre solde zero et rechargement). Le systeme doit donc SURVIVRE
+a la coupure et repartir SEUL, sans redemarrage en pleine conference.
+
+PIEGE MAJEUR MESURE : une cle OpenAI INVALIDE ouvre quand meme le WebSocket.
+Le 'open' arrive normalement ; le refus ne tombe qu'ENSUITE, en evenement
+applicatif ({"code":"invalid_api_key"}), suivi d'une fermeture code 3000.
+=> Le bouton "Verifier le service" se contentait du 'open' : il aurait affiche un
+   FEU VERT MENSONGER avec une cle morte ou un compte a zero. Corrige : la
+   verification va jusqu'a demander une VRAIE petite reponse au modele et
+   n'annonce OK que si elle revient. C'est la seule preuve que le credit marche.
+   Verifie en prod : "FEU VERT : Service OpenAI joignable et credit disponible".
+
+REPRISE AUTOMATIQUE : les tentatives de reconnexion etaient a 800 ms FIXES —
+en cas de coupure, cela martele l'API (et aggrave un depassement de debit) tout
+en noyant le pupitre sous la meme alerte. Desormais : espacement progressif
+1,4 s -> 2,6 s -> 4,7 s -> 8,4 s -> 15 s -> plafond 20 s (92 s couvertes en 8
+tentatives), alerte envoyee au plus UNE FOIS TOUTES LES 20 s, et annonce
+"Service rétabli — la traduction repart." des que ca revient.
+
+===============================================================
+# LE COUT SUIT LES LANGUES, PAS LE NOMBRE DE DENTISTES (prouve)
+===============================================================
+QUESTION FONDATEUR : "le prix est le meme si un ou 100 dentistes ecoutent le
+vocal ?" -> OUI. C'est la propriete centrale de l'architecture (1 seul point de
+capture -> 1 session par langue cible -> diffusion WebSocket a tous les
+telephones ; JAMAIS de traduction par telephone).
+MESURE, meme discours, tous en anglais AVEC ecouteurs :
+   1 auditeur  : 13 appels | audio-out 316 jetons
+  25 auditeurs : 13 appels | audio-out 349 jetons   (ecart de mesure, pas d'echelle)
+=> Remplir la salle ne coute rien. Ajouter une LANGUE coute.
+CONSEQUENCE PRODUIT : le modele economique tient sur le nombre de langues
+ouvertes, pas sur l'affluence. Une salle de 300 dentistes en 2 langues coute le
+meme prix qu'une salle de 3.
+===============================================================
+
+===============================================================
+# QUESTIONS EN DIRECT AU PUPITRE (25 juil)
+===============================================================
+Les questions traduites arrivaient par BLOCS (a chaque morceau termine). Le
+conferencier les voit desormais S'ECRIRE pendant qu'on les lui traduit : les
+deltas de la traduction remontent au pupitre ({type:'question-partiel'}) dans un
+bloc grise "Nom — en train de demander", remplace par la version definitive.
+MESURE en prod : premier mot visible a 7,87 s, definitif a 8,01 s (question de
+~7 s posee au telephone en francais, conferencier anglophone).
+===============================================================
+
+===============================================================
+# 3 POSTES DISTINCTS — LA REGIE N'EST PAS LE PUPITRE (25 juil)
+===============================================================
+RECADRAGE FONDATEUR : "la regie c'est pas mon pupitre, le conferencier sera en
+salle, la regie ailleurs". J'avais confondu les deux : je decrivais la regie
+comme l'ecran du conferencier. Faux — en conference, la regie est en CABINE
+TECHNIQUE (c'est elle qui capte le micro depuis la table de mixage), et le
+conferencier est SUR SCENE.
+
+TROIS POSTES, TROIS PAGES :
+  1. REGIE  /traduction/regie.html      (cabine technique)
+     capte le micro, seuil de captation, rythme, vocabulaire + depot de
+     presentation, verification du service, mode economie, compteurs, file des
+     mains levees et ATTRIBUTION DE LA PAROLE, ce que la machine entend.
+  2. CONFERENCIER  /traduction/conferencier.html?r=<salle>   (sur scene) — NEUF
+     Ne recoit QUE ce qui l'aide a parler : les questions traduites dans sa
+     langue, qui s'ecrivent en direct, le nom du demandeur, le nombre de mains
+     levees, l'etat de la liaison, et les alertes critiques. AUCUN reglage :
+     rien a toucher sur scene. Gros texte (34 px), fort contraste, ecran
+     maintenu allume (wakeLock), lisible debout a un metre.
+  3. PUBLIC  /traduction/?r=<salle>     (telephone du dentiste)
+
+TECHNIQUE : nouveau role WebSocket {type:'scene'} et Set r.scenes par salle.
+versPupitre() diffuse aux deux, mais un FILTRE (POUR_LA_SCENE) ne laisse passer
+vers la scene que question / question-partiel / question-encours / file /
+alerte. Les reglages techniques (heard, conso, verif, rythme) restent en regie.
+La regie affiche le LIEN + un QR de l'ecran de scene, pour l'installer en 10 s.
+
+PREUVE EN PROD (3 postes separes simultanement) :
+  ecran de scene -> etat "En direct", langue orateur "en", 4 mises a jour de
+  file, 15 etapes d'ecriture en direct, question affichee "[Karim Bahmed]
+  What is your irrigation protocol on a very calcified MB2?"
+  reglages techniques recus par la scene : 0 (filtre verifie)
+  la regie garde bien ses informations techniques.
+===============================================================
+
+===============================================================
+# CE QUE LA CONFERENCE LAISSE AU CERVEAU JADOMI (25 juil)
+===============================================================
+DEMANDE FONDATEUR : "le conferencier depose son PowerPoint, l'IA analyse le texte
+pour s'enrichir, ET ca s'enregistre pour enrichir l'IA des dentistes de JADOMI"
++ "les dentistes quand ils mettent leur mail, ca enrichit la liste de mailing".
+
+AUCUNE TABLE CREEE — on se branche sur l'existant :
+  - cabinet_brain_documents (source='conference', doc_type='formation') : le
+    cerveau documentaire, deja 276 documents. Colonne embedding vector(1536)
+    presente : l'indexation semantique pourra suivre sans migration.
+  - bases_emails_importees + contacts_importes : la liste de diffusion, une base
+    PAR CONFERENCE (on sait toujours d'ou vient un contact).
+  - societe : lookup par NOM ('DENTALEVOLUTION', surchargeable par
+    LIVE_TRANSLATE_SOCIETE_ID / _NOM). Jamais d'UUID code en dur.
+  (Note : pas de MCP Supabase dans cette session et pas d'exec_sql en base — d'ou
+   le choix d'utiliser les tables existantes plutot que d'ecrire un SQL que
+   personne ne pourrait executer.)
+
+CE QUI EST ARCHIVE (api/live-translate/corpus.js) :
+  1. le SUPPORT depose (PowerPoint/PDF/Word) -> immediatement, avec les termes
+     extraits en metadata ;
+  2. a la fin de l'intervention : CE QUI A ETE DIT (transcription) + LES
+     QUESTIONS de la salle avec leur auteur, duree, langue, nb de participants.
+  Idempotent : checksum SHA-256 du contenu + contrainte UNIQUE (societe_id,
+  checksum) -> rejouer une conference ne cree pas de doublon.
+
+RGPD — DECISION IMPORTANTE : un e-mail n'entre dans la liste de diffusion QUE si
+la personne a coche la case de consentement sur son telephone ("J'accepte de
+recevoir les informations et les prochaines formations de Dental Evolution").
+Sans consentement, l'e-mail N'EST PAS CONSERVE. Collecter sans consentement
+aurait produit une liste inutilisable en droit.
+PREUVE E2E : 2 dentistes, 1 consentant / 1 refusant -> liste "Conference <salle>"
+avec 1 seul contact ; support et conference presents dans le cerveau.
+
+===============================================================
+# BUG EN SALLE : L'INTERRUPTEUR DE QUESTIONS MENTAIT (25 juil)
+===============================================================
+SYMPTOME : "j'ai ouvert les questions au public et ca fait rien, ca marque
+toujours question fermee".
+DIAGNOSTIC PAR LES LOGS : "ecran de scene connecte room=demo" en boucle, mais
+AUCUN "pupitre connecte room=demo". La regie n'avait jamais demarre la
+diffusion — donc aucune liaison WebSocket — donc le message d'ouverture n'etait
+jamais envoye. L'interrupteur basculait visuellement quand meme.
+=> Ce n'est pas un bug d'ouverture, c'est un CONTROLE QUI MENT SUR SON ETAT.
+FIX : l'interrupteur est DESACTIVE tant que la diffusion n'est pas demarree, avec
+la raison affichee ("Démarrez d'abord la diffusion : sans liaison, les questions
+ne peuvent pas s'ouvrir"). Et la regie n'affiche plus sa case cochee mais l'etat
+CONFIRME PAR LE SERVEUR (questions-etat renvoye aussi au pupitre).
+
+AU PASSAGE : l'ecran de scene se reconnectait toutes les 5 min (socket inactif
+coupe par le proxy). Ajout d'un battement de coeur serveur (ping toutes les 25 s)
+sur tous les clients : plus de trous de reconnexion pendant une conference.
+===============================================================
+
+===============================================================
+# LE DEPOT DE PRESENTATION PASSE SUR L'ECRAN DU CONFERENCIER (25 juil)
+===============================================================
+RECADRAGE FONDATEUR : "deposer le PowerPoint, ca doit etre sur l'ecran du
+conferencier" + "garde-le sur la regie quand meme au cas ou".
+C'est LUI qui a le fichier : la regie ne l'a pas. Le depot etait au mauvais poste.
+
+  - ECRAN CONFERENCIER : bloc "Votre presentation" en haut, avec "Déposer ma
+    presentation" et "Je suis pret". Il VOIT ce qui a ete retenu (liste des
+    termes) et peut juger. Le bloc se replie tout seul des la premiere question
+    ou sur "Je suis pret" : pendant l'intervention, l'ecran ne sert qu'a lire.
+  - REGIE : depot CONSERVE, libelle "Déposer une presentation (secours)" — utile
+    si l'operateur a recu le fichier par mail, ou pour ajouter des termes a la
+    main. La regie affiche desormais le vocabulaire pose par le conferencier
+    (message vocabulaire-etat) : les deux postes voient la meme chose.
+
+TECHNIQUE : les messages 'support' et 'vocabulaire' sont acceptes des roles
+'broadcaster' ET 'scene'. Nouveau message 'vocabulaire-etat' renvoye aux deux
+postes (et a la connexion d'un ecran de scene, pour retrouver l'etat en cours).
+
+PREUVE EN PROD : le conferencier depose ma-presentation.pptx depuis son ecran
+(19 mots, 12 termes) -> la regie affiche "995 car. d amorce, vocabulaire =
+ProTaper, ProTaper Gold, Zeiss, MB2, mise en forme canalaire, constriction…".
+La regie depose ensuite recu-par-mail.pptx (11 mots, 7 termes) : les deux
+chemins fonctionnent.
+
+PIEGE DE TEST (a retenir) : mon premier banc concluait "la regie ne voit rien".
+Faux — le client de test ne rejouait pas l'etape que la vraie page fait (renvoyer
+le vocabulaire retenu apres extraction). Un test qui ne reproduit pas le
+comportement reel du client invente un bug qui n'existe pas.
+===============================================================
+
+===============================================================
+# L'ECRAN DU DENTISTE ETAIT FIGE — REECRIT EN ETAT VIVANT (25 juil)
+===============================================================
+REMONTEE FONDATEUR : "c'est pas vivant c'est statique, tout ce dont j'ai horreur.
+J'ai desactive la parole et ca reste vert actif cote dentiste."
+
+DEUX PROBLEMES, UN SEUL DEFAUT DE CONCEPTION.
+Le serveur etait CORRECT (verifie : le telephone recoit bien
+question-etat(retire) puis questions-etat(false)). Le defaut etait cote page :
+CHAQUE MESSAGE REPEIGNAIT LE BOUTON DANS SON COIN. A la fermeture, le retrait de
+la main repassait le bouton en VERT juste avant que la fermeture n'arrive —
+eclair vert, puis etat fige.
+
+FIX : UN SEUL ETAT, UN SEUL RENDU. Tout message met a jour un objet `etat`
+{ouvertes, position, total, autorise, enregistre, enAttente, quiParle, message}
+et on redessine. Impossible d'avoir deux morceaux d'interface qui se
+contredisent.
+
++ BANDEAU VIVANT, avec pastille qui bat, 4 couleurs :
+  FERME (gris)   "Questions fermées"
+  OUVERT (vert)  "Questions ouvertes · 2 en attente" / "· Sofie Janssens a la parole"
+  ATTENTE (ambre) "Vous êtes 2e sur 2 · Sofie Janssens a la parole"
+  A VOUS (rouge) "C'est à vous — on vous écoute · 0:14" (chrono dans le bandeau)
+
++ NOUVEAU MESSAGE SERVEUR 'salle' diffuse a TOUS les auditeurs (pas seulement a
+  ceux qui attendent) : {ouvertes, enAttente, quiParle}. Sans lui, l'ecran du
+  dentiste ne pouvait pas savoir ce qui se passait dans la salle.
+
+PREUVE (rejeu de la logique d'affichage sur les messages reels du serveur) :
+  a l arrivee      -> FERME, bouton grise
+  la regie OUVRE   -> OUVERT "Questions ouvertes"
+  Sofie leve       -> OUVERT "· 1 en attente"
+  Karim leve       -> ATTENTE "Vous etes 2e sur 2"
+  parole a Sofie   -> ATTENTE "Vous etes 2e sur 2 · Sofie Janssens a la parole"
+  fin de parole    -> ATTENTE "Vous etes le prochain"
+  la regie FERME   -> FERME, bouton grise
+
+PIEGE DE TEST (2e fois aujourd'hui) : mon banc attachait son ecouteur de file
+APRES les mains levees -> il ratait les identifiants -> la parole n'etait jamais
+donnee, et je concluais a tort a un bug serveur. Attacher les ecouteurs AVANT de
+declencher l'action.
+===============================================================
+
+===============================================================
+# QUESTIONS ECRITES + TRI PAR L'IA (25 juil)
+===============================================================
+DEMANDES FONDATEUR : "le dentiste peut poser ses questions par ecrit aussi",
+"pas besoin d'attendre que les questions soient ouvertes", "si des questions sont
+similaires l'IA doit pouvoir les relier, si des questions dans le meme theme
+idem", "la regie verra les questions triees par l'IA".
+
+1) QUESTION ECRITE — a TOUT MOMENT
+   Le dentiste tape sa question sur son telephone. Contrairement a la parole,
+   ECRIRE N'INTERROMPT PERSONNE : possible meme pendant que le conferencier
+   parle, sans lever la main, sans attendre l'ouverture. C'est tout l'interet.
+   Garde-fous : 3 a 600 caracteres, un envoi toutes les 10 s par personne.
+   CHOIX : une question ecrite n'a PAS ete entendue par la salle -> elle ne part
+   PAS dans les sous-titres du public (jobs marques `discret`), seulement au
+   conferencier et a la regie, marquee d'une plume. Quand il y repond a voix
+   haute, toute la salle a la reponse traduite. Fidele a la realite.
+
+   BUG CORRIGE AU PASSAGE (bloquant) : la question ecrite n'arrivait jamais.
+   La session de traduction vers la langue de l'ORATEUR s'ouvrait puis etait
+   fermee AUSSITOT par cleanupSessions — aucun auditeur n'ecoute dans la langue
+   de l'orateur, donc elle etait jugee inutile. Or c'est precisement elle qui
+   traduit les questions vers son ecran. Exception ajoutee : tant qu'un
+   conferencier est connecte, sa langue reste dans les langues utilisees.
+   (Diagnostic : trace temporaire dans cleanupSessions ; verifie au prealable que
+   OpenAI accepte bien une session src==cible — c'etait le cas.)
+
+2) TRI PAR L'IA (api/live-translate/regrouper.js)
+   Dans une salle de 200 dentistes, quinze posent la meme question autrement
+   formulee. On regroupe par SUJET, les plus demandes d'abord.
+   - modele texte gpt-4o-mini, sortie JSON stricte (ponctuel et court : 25x moins
+     cher qu'une session vocale) ;
+   - REPLI sans modele : regroupement par mots-cles rares partages. Mieux vaut un
+     tri imparfait qu'un ecran vide en pleine conference ;
+   - garde-fou : aucune question ne peut disparaitre du tri (les oubliees du
+     modele forment leur propre groupe) ;
+   - recolle les morceaux d'une meme question (meme qid) ;
+   - retri differé de 5 s, jamais deux tris en parallele.
+   AFFICHAGE : regie = liste "Sujets — tries par l'IA" (badge "3 demandent",
+   sujet chaud en rouge) + la liste brute dans l'ordre d'arrivee en dessous.
+   Scene = bandeau de pastilles "3× Irrigation MB2 calcifie" : le conferencier
+   voit d'un coup d'oeil ce qui preoccupe la salle.
+
+   PREUVE EN PROD (5 dentistes, 3 langues, questions NON ouvertes) :
+     Karim (fr), Sofie (nl) et Andrei (ro) posent la MEME question autrement
+     formulee -> un seul sujet "IRRIGATION PROTOCOL CALCIFIE (3 demandeurs)",
+     place en PREMIER. Les deux autres questions forment leurs propres sujets.
+     Le regroupement fonctionne malgre les 3 langues d'origine.
+
+RESTE (demande, non fait) : fenetre VIDEO pour les participants a distance, avec
+la transcription au meme endroit. C'est un chantier a part (diffusion video) —
+voir lib/visio-signaling deja present dans JADOMI.
+===============================================================
+
+DECISION (25 juil) : la VIDEO a distance est ECARTEE par le fondateur — "on va
+pas faire la visio pour l'instant, la traduction live c'est deja tres bien".
+Ne pas relancer sans demande explicite. Chiffres mesures conserves si la question
+revient : jadomi-srv 24 coeurs / 62 Go / NIC 1 Gbit/s, ffmpeg present, plafond
+~400-500 spectateurs en auto-heberge a 1,5 Mbit/s. Piege a retenir : sous-titres
+a 2,4 s contre video HLS a 5-20 s -> il faudrait RETARDER les sous-titres de la
+latence video, sinon le spectateur lit la traduction avant de voir l'orateur.
+
+===============================================================
+# LE MODULE DEVIENT VENDABLE — MULTI-FORMATEUR + CLE DE SALLE (25 juil)
+===============================================================
+DEMANDE FONDATEUR : "tout ca est la propriete de JADOMI, mets tout sur JADOMI
+pour que je puisse le vendre aux formateurs" — puis, important : "pour cette
+formation je peux pas encore parler de JADOMI, sauf si on sort un truc vendable".
+=> Septembre reste NEUTRE sur dentalevolution.fr (branding inchange). En
+parallele, on rend le module vendable.
+
+1) FIN DU MONO-CABINET
+   Le corpus et les contacts etaient cables sur DENTALEVOLUTION. Desormais chaque
+   salle porte SON organisateur : {type:'broadcaster', societe, cle, titre}.
+   corpus.js prend un identifiant de societe par salle ; l'organisateur par
+   defaut du serveur n'est plus qu'un repli.
+   La table societes contenait deja tout le modele produit : is_formation_provider,
+   modules, plan. Rien a creer.
+   PREUVE : deux formateurs (DENTALEVOLUTION et Precision Dentaire), deux
+   conferences simultanees -> chacun recoit SON support et SA liste, aucune fuite
+   croisee verifiee en base.
+
+2) CLE DE SALLE — CE QUI REND LE PRODUIT VENDABLE
+   Sans elle, connaitre l'UUID d'une societe suffisait pour verser du contenu
+   dans son cerveau et des contacts dans sa liste. Inacceptable pour un produit
+   paye. La cle est une signature HMAC-SHA256 de l'identifiant de societe
+   (secret serveur), tronquee a 24 caracteres, comparee en DUREE CONSTANTE.
+   Stateless : rien a stocker, rien a revoquer table par table.
+   Le formateur recoit un lien de regie qui porte sa cle :
+     https://jadomi.fr/live-translate/regie.html?s=<societe>&k=<cle>
+   corpus.lienRegie(societeId) le genere.
+   PREUVE : sans cle -> refuse ; cle inventee -> refuse ; bonne cle -> accepte.
+   Rien n'entre chez la societe visee dans les deux premiers cas (verifie en base).
+
+RESTE pour la commercialisation (non fait) :
+   - activation du module et facturation (societes.modules / plan / billing.js) ;
+   - page produit sur jadomi.fr a destination des formateurs ;
+   - generation du lien de regie depuis le dashboard (aujourd'hui : appel a
+     corpus.lienRegie cote serveur).
 ===============================================================
