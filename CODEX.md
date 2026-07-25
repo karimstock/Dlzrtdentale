@@ -767,6 +767,17 @@ Violation = incident de production. Zero tolerance.
 # 6. HISTORIQUE DES PASSES
 ===============================================================
 
+## Session 25 juillet 2026 (suite) — Module salaries : audit de l'existant + les 7 roles enfin dans l'ecran
+Branche `feat/multi-societes`, commit `3dd4a45`. Demande fondateur : « on reprend le module salarie, relis tout ce qu'on a fait » puis « verifie, tu veux construire des choses existantes ».
+- **AUDIT — ce qui existe VRAIMENT** (verifie en base, pas deduit du code) : le module salaries est `api/dentiste-pro/team.js` (**1848 lignes, 26 routes**) — invitation par email + token, permissions granulaires sur 14 modules, 7 roles avec presets, onboarding, roster, journee vivante (taches, habitudes, capture vocale, copilote souverain), Doctolib. Ecrans `public/equipe/` (ma-journee, profil, onboarding, composer, invitation, connexion-doctolib). Table `dentiste_pro_team`, SQL `51_roles_permissions.sql`. **Rien a construire : tout est la.**
+- ⚠️ **AUCUN salarie reel n'existe dans le produit** : `dentiste_pro_team` = 2 lignes, **toutes deux de DEMO** (`sarah.demo@jadomi.fr`, `nadia.demo@jadomi.fr`, semees le 09/07). Le vrai personnel du cabinet n'a jamais ete cree. Tout ce qui a ete demontre tournait sur des fiches fictives.
+- ✅ Migration 53 `capacites_secondaires` : **APPLIQUEE** (la colonne existe). La note « reste a appliquer » etait perimee.
+- **DOUBLON D'ARCHITECTURE identifie** : deux systemes paralleles pour « les gens qui travaillent ». (1) `dentiste_pro_team` = le vrai module salaries ; (2) `user_societe_roles` cote organisation = **11 lignes, TOUTES `proprietaire`** (le fondateur seul, sur 11 societes dont 6 de test), page `membres-societe.html` (299 lignes, datee du 27 avril, jamais retouchee). **Aucun salarie cote organisation** — construire un « module salaries » dans organisation reviendrait a dupliquer `dentiste_pro_team`.
+- 🐞 **BUG CORRIGE — les 7 roles n'existaient que dans 2 couches sur 3.** Base + backend (`ROLE_PRESETS`) acceptent praticien, associe, secretaire, assistante, comptable, stagiaire, **aide_dentaire** ; les DEUX menus du front n'en proposaient que 5 (il manquait `praticien` et `aide_dentaire`). Consequences reelles : impossible d'**inviter** une aide dentaire depuis le produit ; ouvrir les droits d'une aide dentaire existante affichait un role **VIDE** ; a l'enregistrement `PUT /team/:id/role` recevait `role:''` -> **400 « Role invalide »** que le front n'affichait pas (le `catch` ne se declenche pas sur un 400) = **echec muet** ; et remplir le champ vide avec un des 5 roles proposes **reclassait** le salarie.
+- 🐞 **BUG CORRIGE (2) — l'enregistrement s'effacait lui-meme.** `PUT /:id/role` reecrit `permissions` avec `unionPermissions(role, cumul)` (team.js:412) ; or le front enregistrait les **cases d'abord**, le **role ensuite** -> tout ajustement manuel etait ecrase dans la foulee, alors que la fenetre promet « le role pre-coche, ajustez librement ». Ordre inverse : role d'abord, cases ajustees ensuite. Les echecs serveur sont desormais affiches.
+- **Tests** : `node scripts/_test_roles_equipe.js` = **10/10** (les 3 couches alignees, contrainte SQL testee en reel par insertion refusee, ordre d'enregistrement, remontee d'erreur, zero ligne parasite laissee en base). `new Function()` sur les 4 blocs de script d'index.html = 0 erreur. Backup `backups/index.html.bak-20260725-143811-roles-equipe`.
+- **RESTE (etape suivante, cote fondateur)** : creer ses VRAIES salariees via l'ecran (regle : c'est le fondateur qui cree son personnel via le produit, jamais moi en SQL), puis eprouver la journee vivante en conditions reelles. Les 2 fiches de demo restent a retirer une fois le vrai personnel en place.
+
 ## Session 25 juillet 2026 (suite) — Compta : le rapprochement devient un MOTEUR a plusieurs yeux, et il se souvient
 Branche `feat/multi-societes`, commit `2eb5991`. Suite directe de la session ci-dessous : la regle de rapprochement etait enfouie dans `server.js` et tenait en une ligne (montant a 2 % pres + un mot du fournisseur dans le libelle), dupliquee entre le rapprochement automatique et le calcul de certitude.
 - **Nouveau `lib/compta/rapprochement.js`** (SOURCE UNIQUE, 100 % deterministe, zero appel IA) : plusieurs regards INDEPENDANTS sur une meme paire prelevement <-> facture, chacun rendant une preuve ou rien — **le montant** (au centime, porte d'entree non negociable), **le nom** (mot entier de preference : « edf » ne matche pas « medfinance »), **la memoire** des libelles deja rattaches, **la reference** de facture presente dans le libelle, **la chronologie** (une facture posterieure au debit = alerte), **la devise d'origine** (« PAIEMENT CB 1024 CNY » face au `montant_original`), **le mode de paiement** (especes contre prelevement = alerte).
@@ -8471,3 +8482,124 @@ RESTE pour la commercialisation (non fait) :
    - generation du lien de regie depuis le dashboard (aujourd'hui : appel a
      corpus.lienRegie cote serveur).
 ===============================================================
+
+===============================================================
+# LE COMPTE RENDU — CE QUE PERSONNE D'AUTRE NE FAIT (25 juil)
+===============================================================
+ANALYSE DE LA CONCURRENCE (recherche du 25 juil) :
+  Wordly      60+ langues en une session, sous-titres, transcriptions, resumes IA
+  Interprefy  6 000 combinaisons, 80+ integrations (Teams/Zoom/Webex), agent IA
+  KUDO        200 langues, marketplace d'interpretes HUMAINS + IA
+  Interactio  gouvernements, interpretes certifies, sondages, analytique
+  Toutes : acces public par QR + navigateur mobile.
+=> Sur le NOMBRE DE LANGUES et les CERTIFICATIONS, on ne les rattrapera jamais.
+   Mais toutes sont GENERALISTES, et AUCUNE ne relie les questions du public au
+   discours qui suit. C'est la breche.
+
+LIVRE : api/live-translate/compte-rendu.js
+  A la fin de l'intervention, un compte rendu qui contient :
+   - ce qui a ete dit (points cles) et ce qu'il faut retenir ;
+   - ce que la salle a demande, par sujet, avec le nombre de demandeurs ;
+   - LES QUESTIONS RESTEES SANS REPONSE, avec pour chacune la raison ;
+   - les termes techniques reellement employes.
+  Garde-fou : une question que le modele n'a pas classee est comptee SANS
+  reponse — mieux vaut une question de trop qu'une question oubliee.
+  Repli sans modele : on ne resume pas, mais on restitue. Jamais d'ecran vide.
+
+BUG DE CONCEPTION CORRIGE : le compte rendu etait genere a la DECONNEXION de la
+regie — donc il n'y avait plus personne a qui l'afficher (constate en test :
+"AUCUN COMPTE RENDU RECU"). Ajout d'un bouton "Terminer et generer le compte
+rendu" : il est produit tant que la regie est la, puis archive dans le cerveau.
+
+PREUVE EN PROD : le conferencier expose, 3 dentistes ecrivent, il ne repond QU'A
+LA PREMIERE. Le compte rendu signale exactement les DEUX autres :
+  "Julie Martin : Quel ciment de scellement... -> Aucune mention d'un ciment de
+   scellement pour une obturation monocone."
+  "Marc Dubois : Quelle conduite si le canal reste introuvable... -> Aucune
+   reponse concernant la conduite a tenir."
+La question effectivement traitee n'est PAS signalee. Termes releves :
+ProTaper Gold, ProGlider, hypochlorite de sodium, ultrasons passifs, MB2.
+===============================================================
+
+CORRECTIF (25 juil) — L'ECRIT NE DEPEND PAS DE L'OUVERTURE DES QUESTIONS.
+Remontee fondateur : "les questions ecrites, je peux les ecrire avant que les
+questions soient ouvertes, car la regie ne bloque que pour l'oral". Exact — et le
+SERVEUR l'acceptait deja. C'est la PAGE qui grisait le champ de saisie tant que
+les questions n'etaient pas ouvertes : l'interface contredisait le moteur.
+`peutEcrire` ne depend plus que d'une chose : ne pas etre en train de parler au
+micro. Libelles corriges ("ou, a tout moment", "Ecrire n'interrompt personne :
+pas besoin d'attendre l'ouverture des questions").
+PREUVE, questions FERMEES : demande de parole -> REFUSEE ("les questions ne sont
+pas ouvertes") ; question ecrite -> ACCEPTEE et recue au pupitre traduite
+("Doctor, which sealer do you recommend for the single cone technique?").
+LECON : quand l'interface et le serveur divergent, c'est presque toujours
+l'interface qui a ajoute une regle que personne n'a demandee.
+
+===============================================================
+# VIDEO DES CONFERENCES EN DIRECT — SOCLE POSE (25 juil)
+===============================================================
+"go" du fondateur. Installation ISOLEE, sans rien casser : l'application jadomi
+n'a pas ete touchee, nginx a ete sauvegarde avant modification, et le site a ete
+verifie debout apres chaque etape.
+
+SERVEUR MEDIA : MediaMTX v1.19.3 dans /home/ubuntu/mediamtx, sous pm2
+("video-conferences"), pm2 save fait -> survit au redemarrage.
+
+CHOIX DE LATENCE : LL-HLS (segments 1 s, parties 200 ms) = 2 a 4 s. VOLONTAIRE :
+les sous-titres arrivent a ~2,4 s, donc image et texte tombent ENSEMBLE. Une
+diffusion HLS classique (10-20 s) ferait LIRE LA TRADUCTION AVANT DE VOIR
+L'ORATEUR LA PRONONCER — pire que pas de video du tout.
+
+SECURITE (deux corrections en cours de route) :
+ 1. MediaMTX ouvrait le port 8892 (MoQ) VERS L'EXTERIEUR sans qu'on l'ait
+    demande -> moq/rtsp/srt/webrtc/playback fermes. Ne garder que ce qui sert.
+ 2. La cle de diffusion transitait EN CLAIR sur le RTMP -> RTMPS active sur 1936
+    avec le certificat Let's Encrypt (copie lisible par l'utilisateur ubuntu ;
+    A PREVOIR : un hook de renouvellement pour recopier le certificat).
+ Diffuser exige la cle (authInternalUsers), lire est libre : c'est le public.
+ Sortie HLS en 127.0.0.1 uniquement : c'est nginx qui publie, avec le HTTPS
+ existant. AUCUN nouveau port HTTP expose.
+
+NGINX : bloc "location /flux/" ajoute au serveur jadomi.fr, sauvegarde prealable,
+nginx -t puis reload (zero coupure).
+ PIEGE RENCONTRE : le serveur media renvoie "Location: /demo/..." sans savoir
+ qu'il est publie sous /flux/ -> le navigateur repartait a la racine et tombait
+ sur la page 404 de JADOMI. Corrige par "proxy_redirect / /flux/;".
+
+PREUVE DE BOUT EN BOUT (depuis l'exterieur, en HTTPS) :
+ playlist 200 (1280x720, 1,49 Mbit/s, video+audio) -> piste video 200 ->
+ segment 200 de 185 234 octets de vraie video. Site jadomi.fr : 200.
+
+COTE PAGES :
+ - page publique : le lecteur n'apparait QUE si un flux existe reellement (un
+   cadre noir permanent ferait croire a une panne). hls.js HEBERGE CHEZ NOUS
+   (354 Ko), aucun appel a un CDN exterieur. Reprise automatique sur coupure.
+   Sur dentalevolution.fr, la video pointe sur jadomi.fr.
+ - regie : coordonnees de diffusion a coller dans OBS (rtmps://jadomi.fr:1936/
+   <salle>), avec la capacite mesuree annoncee (~450 spectateurs en 720p).
+
+RESTE : hook de renouvellement du certificat pour le RTMPS ; distribution de la
+cle de diffusion par formateur (aujourd'hui une seule cle serveur).
+===============================================================
+
+CERTIFICAT DE LA DIFFUSION VIDEO — RISQUE ECARTE (25 juil)
+Le fondateur signale : "90 jours, mais la formation a lieu du 24 au 27 septembre".
+VERIFICATION : le certificat expire le 5 SEPTEMBRE 2026 — 19 jours AVANT la
+formation. Certbot renouvelle bien le site tout seul (timer actif), MAIS la COPIE
+lisible par le serveur video serait restee figee et aurait expire le 5 septembre.
+La diffusion chiffree aurait casse EN SILENCE juste avant la conference.
+LIVRE : /usr/local/bin/renouveler-cert-video.sh
+  - lie en deploy-hook certbot (/etc/letsencrypt/renewal-hooks/deploy/) ;
+  - + filet quotidien (/etc/cron.d/video-cert-jadomi, 4h17) : un hook qui ne se
+    declenche pas ne previent personne ;
+  - ne recopie QUE si le certificat a change (pas de redemarrage inutile en
+    pleine conference), bascule atomique, journal dans mediamtx/renouvellement.log.
+EPROUVE POUR DE VRAI : copie volontairement corrompue -> detectee, restauree,
+diffusion redemarree, le tout journalise.
+
+ETAT POUR UN CLIENT (repondu au fondateur) : le module est TECHNIQUEMENT
+fonctionnel sur jadomi.fr (/live-translate/ public, regie.html, conferencier.html,
+/flux/ video) mais COMMERCIALEMENT INVISIBLE : aucune page produit, absent de
+tarifs.html, aucun lien depuis le site, et le lien de regie + les cles doivent
+encore etre generes cote serveur. Un client ne peut ni le decouvrir, ni l'acheter,
+ni recuperer son acces seul.
